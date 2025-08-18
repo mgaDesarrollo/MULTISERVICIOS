@@ -125,17 +125,22 @@ export function Footer() {
         {/* Bottom Footer */}
         <div className="py-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-primary-foreground/60 text-sm">
-              © 2024 MULTISERVICIOS. Todos los derechos reservados.
+            <div className="text-primary-foreground/60 text-sm text-center md:text-left">
+              <div className="mb-2">© 2024 MULTISERVICIOS. Todos los derechos reservados.</div>
+              <div className="text-xs space-y-1">
+                <div>CUIT: 30-12345678-9 | Inscripción AFIP: 12345</div>
+                <div>Registro Nacional de Empresas: RNE-2024-001234</div>
+                <div>Habilitación Municipal: HM-2024-5678</div>
+              </div>
             </div>
-            <div className="flex gap-6 text-sm">
-              <button className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 text-sm text-center">
+              <button className="text-primary-foreground/60 hover:text-primary-foreground transition-colors whitespace-nowrap">
                 Política de Privacidad
               </button>
-              <button className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
+              <button className="text-primary-foreground/60 hover:text-primary-foreground transition-colors whitespace-nowrap">
                 Términos de Servicio
               </button>
-              <button className="text-primary-foreground/60 hover:text-primary-foreground transition-colors">
+              <button className="text-primary-foreground/60 hover:text-primary-foreground transition-colors whitespace-nowrap">
                 Aviso Legal
               </button>
             </div>

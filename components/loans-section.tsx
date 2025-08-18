@@ -29,7 +29,7 @@ const loanTypes = [
   },
   {
     icon: Building2,
-    title: "Financiamiento de Activos",
+    title: "Financimiento de Activos",
     description: "Adquiere maquinaria, equipos y vehículos con planes de financiamiento especializados.",
     benefits: ["Hasta 5 años de plazo", "Tasas competitivas", "El activo como garantía"],
     color: "bg-orange-500",
@@ -49,7 +49,7 @@ export function LoansSection() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <Badge variant="secondary" className="mb-4">
-            Préstamos para Negocios
+            Préstamos
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Soluciones de Financiamiento a tu Medida

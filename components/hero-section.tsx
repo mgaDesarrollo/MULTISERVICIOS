@@ -59,27 +59,27 @@ export function HeroSection() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
-            <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:bg-card/80 transition-all duration-300">
-              <div className="flex items-center justify-center mb-3">
-                <Shield className="w-8 h-8 text-secondary mb-2" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-2xl mx-auto">
+            <div className="bg-gradient-to-br from-cyan-500/10 to-blue-600/10 backdrop-blur-sm border border-cyan-400/30 rounded-xl p-4 hover:bg-gradient-to-br hover:from-cyan-500/20 hover:to-blue-600/20 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25">
+              <div className="flex items-center justify-center mb-2">
+                <Shield className="w-6 h-6 text-cyan-400 mb-1 drop-shadow-lg" />
               </div>
-              <div className="text-4xl font-black text-secondary mb-3">500+</div>
-              <div className="text-muted-foreground font-medium">Negocios Financiados</div>
+              <div className="text-3xl font-black text-black dark:text-white mb-2">500+</div>
+              <div className="text-muted-foreground font-medium text-sm">Negocios Financiados</div>
             </div>
-            <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:bg-card/80 transition-all duration-300">
-              <div className="flex items-center justify-center mb-3">
-                <Clock className="w-8 h-8 text-secondary mb-2" />
+            <div className="bg-gradient-to-br from-purple-500/10 to-pink-600/10 backdrop-blur-sm border border-purple-400/30 rounded-xl p-4 hover:bg-gradient-to-br hover:from-purple-500/20 hover:to-pink-600/20 transition-all duration-300 shadow-lg hover:shadow-purple-500/25">
+              <div className="flex items-center justify-center mb-2">
+                <Clock className="w-6 h-6 text-purple-400 mb-1 drop-shadow-lg" />
               </div>
-              <div className="text-4xl font-black text-secondary mb-3">24h</div>
-              <div className="text-muted-foreground font-medium">Aprobación Rápida</div>
+              <div className="text-3xl font-black text-black dark:text-white mb-2">24h</div>
+              <div className="text-muted-foreground font-medium text-sm">Aprobación Rápida</div>
             </div>
-            <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:bg-card/80 transition-all duration-300">
-              <div className="flex items-center justify-center mb-3">
-                <Award className="w-8 h-8 text-secondary mb-2" />
+            <div className="bg-gradient-to-br from-emerald-500/10 to-teal-600/10 backdrop-blur-sm border border-emerald-400/30 rounded-xl p-4 hover:bg-gradient-to-br hover:from-emerald-500/20 hover:to-teal-600/20 transition-all duration-300 shadow-lg hover:shadow-emerald-500/25">
+              <div className="flex items-center justify-center mb-2">
+                <Award className="w-6 h-6 text-emerald-400 mb-1 drop-shadow-lg" />
               </div>
-              <div className="text-4xl font-black text-secondary mb-3">15+</div>
-              <div className="text-muted-foreground font-medium">Años de Experiencia</div>
+              <div className="text-3xl font-black text-black dark:text-white mb-2">15+</div>
+              <div className="text-muted-foreground font-medium text-sm">Años de Experiencia</div>
             </div>
           </div>
         </div>
