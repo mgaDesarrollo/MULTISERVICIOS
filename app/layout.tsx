@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist } from "next/font/google"
 import { Manrope } from "next/font/google"
+import { Oswald } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
@@ -17,6 +18,13 @@ const manrope = Manrope({
   variable: "--font-manrope",
 })
 
+const oswald = Oswald({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-oswald",
+  weight: ["200", "300", "400", "500", "600", "700"],
+})
+
 export const metadata: Metadata = {
   title: "MULTISERVICIOS - Financiamiento Inteligente para tu Negocio",
   description: "Transforma tu negocio con nuestras soluciones de financiamiento personalizadas y ágiles.",
@@ -29,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`${geist.variable} ${manrope.variable} antialiased`}>
+    <html lang="es" className={`${geist.variable} ${manrope.variable} ${oswald.variable} antialiased`}>
       <body className="font-sans">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}

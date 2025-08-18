@@ -4,78 +4,80 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated color tokens for professional financial services design */
-  --background: oklch(1 0 0); /* Pure white */
-  --foreground: oklch(0.25 0 0); /* Dark gray for text */
-  --card: oklch(0.98 0 0); /* Light gray for cards */
-  --card-foreground: oklch(0.25 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0 0);
-  --primary: oklch(0.25 0 0); /* Professional dark gray */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.65 0.15 270); /* Professional purple accent */
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --accent: oklch(0.65 0.15 270); /* Purple accent */
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.92 0 0);
-  --input: oklch(1 0 0);
-  --ring: oklch(0.65 0.15 270 / 0.5);
+  /* Restored vibrant color palette with purple and blue accents */
+  --background: oklch(0.99 0.005 106.423); /* Soft white with slight warmth */
+  --foreground: oklch(0.145 0.015 258.338); /* Deep navy for text */
+  --card: oklch(0.985 0.008 106.423); /* Light card background */
+  --card-foreground: oklch(0.145 0.015 258.338);
+  --popover: oklch(0.99 0.005 106.423);
+  --popover-foreground: oklch(0.145 0.015 258.338);
+  --primary: oklch(0.455 0.207 271.077); /* Professional purple */
+  --primary-foreground: oklch(0.985 0.008 106.423);
+  --secondary: oklch(0.545 0.186 258.338); /* Professional blue */
+  --secondary-foreground: oklch(0.985 0.008 106.423);
+  --muted: oklch(0.96 0.012 106.423);
+  --muted-foreground: oklch(0.556 0.025 258.338);
+  --accent: oklch(0.635 0.198 271.077); /* Lighter purple accent */
+  --accent-foreground: oklch(0.985 0.008 106.423);
+  --destructive: oklch(0.577 0.245 27.325); /* Red for errors */
+  --destructive-foreground: oklch(0.985 0.008 106.423);
+  --border: oklch(0.922 0.015 106.423);
+  --input: oklch(0.922 0.015 106.423);
+  --ring: oklch(0.455 0.207 271.077);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-3: oklch(0.455 0.207 271.077);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.98 0 0);
-  --sidebar-foreground: oklch(0.25 0 0);
-  --sidebar-primary: oklch(0.65 0.15 270);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.25 0 0);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.92 0 0);
-  --sidebar-ring: oklch(0.65 0.15 270 / 0.5);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0.008 106.423);
+  --sidebar-foreground: oklch(0.145 0.015 258.338);
+  --sidebar-primary: oklch(0.455 0.207 271.077);
+  --sidebar-primary-foreground: oklch(0.985 0.008 106.423);
+  --sidebar-accent: oklch(0.96 0.012 106.423);
+  --sidebar-accent-foreground: oklch(0.145 0.015 258.338);
+  --sidebar-border: oklch(0.922 0.015 106.423);
+  --sidebar-ring: oklch(0.455 0.207 271.077);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.65 0.15 270);
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.65 0.15 270);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.65 0.15 270 / 0.5);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.65 0.15 270);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.65 0.15 270 / 0.5);
+  /* Updated dark mode with vibrant colors */
+  --background: oklch(0.125 0.015 258.338); /* Dark navy background */
+  --foreground: oklch(0.985 0.008 106.423); /* Light text */
+  --card: oklch(0.165 0.018 258.338); /* Slightly lighter card */
+  --card-foreground: oklch(0.985 0.008 106.423);
+  --popover: oklch(0.125 0.015 258.338);
+  --popover-foreground: oklch(0.985 0.008 106.423);
+  --primary: oklch(0.635 0.198 271.077); /* Lighter purple for dark mode */
+  --primary-foreground: oklch(0.125 0.015 258.338);
+  --secondary: oklch(0.645 0.186 258.338); /* Lighter blue for dark mode */
+  --secondary-foreground: oklch(0.125 0.015 258.338);
+  --muted: oklch(0.205 0.022 258.338);
+  --muted-foreground: oklch(0.708 0.025 106.423);
+  --accent: oklch(0.545 0.186 271.077);
+  --accent-foreground: oklch(0.985 0.008 106.423);
+  --destructive: oklch(0.696 0.245 27.325);
+  --destructive-foreground: oklch(0.125 0.015 258.338);
+  --border: oklch(0.205 0.022 258.338);
+  --input: oklch(0.205 0.022 258.338);
+  --ring: oklch(0.635 0.198 271.077);
+  --chart-1: oklch(0.746 0.222 41.116);
+  --chart-2: oklch(0.7 0.118 184.704);
+  --chart-3: oklch(0.635 0.198 271.077);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.165 0.018 258.338);
+  --sidebar-foreground: oklch(0.985 0.008 106.423);
+  --sidebar-primary: oklch(0.635 0.198 271.077);
+  --sidebar-primary-foreground: oklch(0.125 0.015 258.338);
+  --sidebar-accent: oklch(0.205 0.022 258.338);
+  --sidebar-accent-foreground: oklch(0.985 0.008 106.423);
+  --sidebar-border: oklch(0.205 0.022 258.338);
+  --sidebar-ring: oklch(0.635 0.198 271.077);
 }
 
 @theme inline {
+  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

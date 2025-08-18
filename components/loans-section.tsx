@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { DollarSign, TrendingUp, CreditCard, Building2, Zap, Shield, Clock, Calculator } from "lucide-react"
+import { DollarSign, TrendingUp, CreditCard, Building2 } from "lucide-react"
 
 const loanTypes = [
   {
@@ -36,29 +36,6 @@ const loanTypes = [
   },
 ]
 
-const advantages = [
-  {
-    icon: Zap,
-    title: "Aprobación Rápida",
-    description: "Respuesta en menos de 24 horas",
-  },
-  {
-    icon: Calculator,
-    title: "Tasas Competitivas",
-    description: "Las mejores tasas del mercado",
-  },
-  {
-    icon: Shield,
-    title: "Asesoría Personalizada",
-    description: "Expertos dedicados a tu éxito",
-  },
-  {
-    icon: Clock,
-    title: "Proceso 100% Digital",
-    description: "Sin papeleos innecesarios",
-  },
-]
-
 export function LoansSection() {
   const scrollToContact = () => {
     const element = document.getElementById("contacto")
@@ -82,8 +59,7 @@ export function LoansSection() {
           </p>
         </div>
 
-        {/* Loan Types */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {loanTypes.map((loan, index) => {
             const IconComponent = loan.icon
             return (
@@ -122,29 +98,6 @@ export function LoansSection() {
               </Card>
             )
           })}
-        </div>
-
-        {/* Advantages */}
-        <div className="bg-muted/50 rounded-2xl p-8 md:p-12">
-          <div className="text-center mb-12">
-            <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-4">¿Por qué Elegirnos?</h3>
-            <p className="text-muted-foreground">Nos diferenciamos por nuestro compromiso con el éxito de tu negocio</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {advantages.map((advantage, index) => {
-              const IconComponent = advantage.icon
-              return (
-                <div key={index} className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-secondary/10 rounded-full mb-4">
-                    <IconComponent className="w-8 h-8 text-secondary" />
-                  </div>
-                  <h4 className="font-semibold text-foreground mb-2">{advantage.title}</h4>
-                  <p className="text-sm text-muted-foreground">{advantage.description}</p>
-                </div>
-              )
-            })}
-          </div>
         </div>
       </div>
     </section>

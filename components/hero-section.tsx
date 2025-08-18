@@ -28,7 +28,7 @@ export function HeroSection() {
             Soluciones Financieras Profesionales
           </div>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-foreground mb-8 leading-[0.9] tracking-tight">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-mono font-black text-foreground mb-8 leading-[0.9] tracking-tight">
             <span className="bg-gradient-to-r from-foreground via-secondary to-primary bg-clip-text text-transparent">
               Financiamiento Inteligente para tu Negocio
             </span>
