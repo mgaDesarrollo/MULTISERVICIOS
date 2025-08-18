@@ -555,17 +555,24 @@ export function ProductsSection() {
         </div>
 
         <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8">
-            {Object.entries(productCategories).map(([key, category]) => {
-              const IconComponent = category.icon
-              return (
-                <TabsTrigger key={key} value={key} className="flex items-center gap-2">
-                  <IconComponent className="w-4 h-4" />
-                  {category.name}
-                </TabsTrigger>
-              )
-            })}
-          </TabsList>
+          <div className="mb-8 overflow-x-auto">
+            <TabsList className="inline-flex w-max min-w-full grid-cols-none gap-1 p-1">
+              {Object.entries(productCategories).map(([key, category]) => {
+                const IconComponent = category.icon
+                return (
+                  <TabsTrigger
+                    key={key}
+                    value={key}
+                    className="flex items-center gap-1 md:gap-2 whitespace-nowrap px-2 md:px-4 py-2 text-xs md:text-sm"
+                  >
+                    <IconComponent className="w-3 h-3 md:w-4 md:h-4" />
+                    <span className="hidden sm:inline">{category.name}</span>
+                    <span className="sm:hidden">{category.name.slice(0, 4)}</span>
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </div>
 
           <div className="bg-card rounded-lg p-3 md:p-6 mb-8 border">
             <div className="flex items-center gap-2 mb-3 md:mb-4">
