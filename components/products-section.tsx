@@ -19,6 +19,7 @@ import {
   Filter,
   Star,
   Eye,
+  ChevronDown,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
@@ -30,6 +31,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 const productCategories = {
   cocina: {
@@ -359,6 +361,7 @@ export function ProductsSection() {
   const [priceFilter, setPriceFilter] = useState("all")
   const [brandFilter, setBrandFilter] = useState("all")
   const [sortBy, setSortBy] = useState("name")
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const getFilteredProducts = (products: any[]) => {
     let filtered = [...products]
@@ -574,70 +577,73 @@ export function ProductsSection() {
             </TabsList>
           </div>
 
-          <div className="bg-card rounded-lg p-3 md:p-6 mb-8 border">
-            <div className="flex items-center gap-2 mb-3 md:mb-4">
-              <Filter className="w-4 h-4 md:w-5 md:h-5" />
-              <h3 className="font-semibold text-sm md:text-base">Filtros</h3>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-              <div>
-                <label className="text-xs md:text-sm font-medium mb-1 md:mb-2 block">Precio</label>
-                <Select value={priceFilter} onValueChange={setPriceFilter}>
-                  <SelectTrigger className="h-8 md:h-10 text-xs md:text-sm">
-                    <SelectValue placeholder="Precio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="under500">&lt; $500</SelectItem>
-                    <SelectItem value="500to1000">$500-$1K</SelectItem>
-                    <SelectItem value="over1000">&gt; $1K</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs md:text-sm font-medium mb-1 md:mb-2 block">Marca</label>
-                <Select value={brandFilter} onValueChange={setBrandFilter}>
-                  <SelectTrigger className="h-8 md:h-10 text-xs md:text-sm">
-                    <SelectValue placeholder="Marca" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    {getBrandsForCategory(activeCategory).map((brand) => (
-                      <SelectItem key={brand} value={brand}>
-                        {brand}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs md:text-sm font-medium mb-1 md:mb-2 block">Orden</label>
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="h-8 md:h-10 text-xs md:text-sm">
-                    <SelectValue placeholder="Orden" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="name">A-Z</SelectItem>
-                    <SelectItem value="price-low">$ Menor</SelectItem>
-                    <SelectItem value="price-high">$ Mayor</SelectItem>
-                    <SelectItem value="rating">★ Rating</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end">
+          <div className="mb-6">
+            <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+              <CollapsibleTrigger asChild>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setPriceFilter("all")
-                    setBrandFilter("all")
-                    setSortBy("name")
-                  }}
-                  className="w-full h-8 md:h-10 text-xs md:text-sm"
+                  className="w-full md:w-auto flex items-center justify-between gap-2 mb-4 bg-transparent"
                 >
-                  Limpiar
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4" />
+                    <span>Filtros</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
                 </Button>
-              </div>
-            </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4">
+                <div className="bg-card rounded-lg p-4 border">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Select value={priceFilter} onValueChange={setPriceFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Precio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los precios</SelectItem>
+                        <SelectItem value="under500">Menos de $500</SelectItem>
+                        <SelectItem value="500to1000">$500 - $1,000</SelectItem>
+                        <SelectItem value="over1000">Más de $1,000</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={brandFilter} onValueChange={setBrandFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Marca" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las marcas</SelectItem>
+                        {getBrandsForCategory(activeCategory).map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Ordenar por" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Nombre A-Z</SelectItem>
+                        <SelectItem value="price-low">Precio: Menor a Mayor</SelectItem>
+                        <SelectItem value="price-high">Precio: Mayor a Menor</SelectItem>
+                        <SelectItem value="rating">Mejor Calificación</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setPriceFilter("all")
+                        setBrandFilter("all")
+                        setSortBy("name")
+                      }}
+                      className="h-9"
+                    >
+                      Limpiar
+                    </Button>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           {Object.entries(productCategories).map(([key, category]) => (
@@ -672,7 +678,7 @@ export function ProductsSection() {
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-3 md:p-6">
+                    <CardContent className="p-3 md:p-6 flex flex-col h-full">
                       <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
                         <CardTitle className="text-sm md:text-xl mb-1 md:mb-0 line-clamp-2">{product.title}</CardTitle>
                         <span className="text-lg md:text-2xl font-bold text-primary">{product.price}</span>
@@ -688,10 +694,10 @@ export function ProductsSection() {
                         </div>
                         <span className="text-xs md:text-sm text-muted-foreground">({product.rating})</span>
                       </div>
-                      <CardDescription className="text-muted-foreground mb-4 hidden md:block">
+                      <CardDescription className="text-muted-foreground mb-4 hidden md:block flex-grow">
                         {product.description}
                       </CardDescription>
-                      <div className="space-y-1 md:space-y-2">
+                      <div className="space-y-1 md:space-y-2 mt-auto">
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button
@@ -773,11 +779,11 @@ export function ProductsSection() {
                                     <span className="hidden sm:inline">Agregar al </span>Carrito
                                   </Button>
                                   <Button
-                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm h-8 md:h-10"
+                                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs md:text-sm h-8 md:h-10"
                                     onClick={() => handleWhatsAppClick(selectedProduct.whatsappMessage)}
                                   >
                                     <MessageCircle className="w-4 h-4 mr-2" />
-                                    <span className="hidden sm:inline">Consultar </span>WhatsApp
+                                    <span className="hidden sm:inline">Obtén tu </span>Financiamiento
                                   </Button>
                                 </div>
                               </div>
@@ -793,11 +799,11 @@ export function ProductsSection() {
                           <span className="hidden sm:inline">Agregar al </span>Carrito
                         </Button>
                         <Button
-                          className="w-full bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm h-8 md:h-10"
+                          className="w-full bg-orange-500 hover:bg-orange-600 text-white text-xs md:text-sm h-8 md:h-10"
                           onClick={() => handleWhatsAppClick(product.whatsappMessage)}
                         >
                           <MessageCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                          <span className="hidden sm:inline">Consultar </span>WhatsApp
+                          <span className="hidden sm:inline">Obtén tu </span>Financiamiento
                         </Button>
                       </div>
                     </CardContent>
