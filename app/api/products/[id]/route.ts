@@ -13,10 +13,10 @@ export async function PUT(
     const { id: idStr } = await params
     const id = Number(idStr)
     const body = await request.json()
-    const { name, description, image, images, categoryId, price, brand, rating, features, specifications } = body
+    const { name, description, technicalInfo, image, images, categoryId, price, brand, rating, features, specifications } = body
     const updated = await prisma.product.update({
       where: { id },
-      data: { name, description, image, images, categoryId, price, brand, rating, features, specifications },
+      data: { name, description, technicalInfo, image, images, categoryId, price, brand, rating, features, specifications },
     })
     return NextResponse.json(updated)
   } catch (error: any) {

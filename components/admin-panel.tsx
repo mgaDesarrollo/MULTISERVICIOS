@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star } from "lucide-react"
+import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, DollarSign, Building2, FileText, Info } from "lucide-react"
 
 interface Product {
   id: number
@@ -19,6 +19,7 @@ interface Product {
   brand?: string
   price: string | number
   description?: string
+  technicalInfo?: string
   image?: string
   images?: string[]
   categoryId: number
@@ -48,6 +49,10 @@ export function AdminPanel() {
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [newExtraImageFiles, setNewExtraImageFiles] = useState<File[]>([])
+  // Unified images for create (first is cover)
+  const [newAllImageFiles, setNewAllImageFiles] = useState<File[]>([])
+  // Unified images for edit (first is cover among new selections)
+  const [editAllImageFiles, setEditAllImageFiles] = useState<File[]>([])
   const [editExtraImageFiles, setEditExtraImageFiles] = useState<File[]>([])
   // DnD indices for reordering
   const [dragIdxImages, setDragIdxImages] = useState<number | null>(null)
@@ -59,6 +64,9 @@ export function AdminPanel() {
   const [newSpecValue, setNewSpecValue] = useState("")
   const [editSpecKey, setEditSpecKey] = useState("")
   const [editSpecValue, setEditSpecValue] = useState("")
+  // Temp inputs for features in add/edit dialogs
+  const [newFeatureValue, setNewFeatureValue] = useState("")
+  const [editFeatureValue, setEditFeatureValue] = useState("")
 
   const reorder = <T,>(arr: T[], from: number, to: number): T[] => {
     const copy = [...arr]
@@ -72,6 +80,7 @@ export function AdminPanel() {
     brand: "",
     price: "",
     description: "",
+  technicalInfo: "",
     image: "",
     categoryId: undefined,
     rating: 5,
@@ -86,35 +95,18 @@ export function AdminPanel() {
 
   const handleSaveProduct = async () => {
     if (editingProduct) {
-      // If a new file was selected for edit, upload it first
-      let editImageUrl = editingProduct.image || ""
-      if (editImageFile) {
+      // Subir nuevas imágenes seleccionadas (si hay)
+      let uploadedEditUrls: string[] = []
+      if (editAllImageFiles.length > 0) {
         try {
           setIsUploading(true)
-          const form = new FormData()
-          form.append("file", editImageFile)
-          const resUp = await fetch("/api/upload", { method: "POST", body: form })
-          if (!resUp.ok) throw new Error("Upload failed")
-          const dataUp = await resUp.json()
-          editImageUrl = dataUp.url || editImageUrl
-        } catch (e) {
-          console.error(e)
-        } finally {
-          setIsUploading(false)
-        }
-      }
-      // Upload any extra images selected during edit
-      let extraEditUrls: string[] = []
-      if (editExtraImageFiles.length > 0) {
-        try {
-          setIsUploading(true)
-          for (const f of editExtraImageFiles.slice(0, 3)) {
+          for (const f of editAllImageFiles.slice(0, 4)) {
             const form = new FormData()
             form.append("file", f)
             const res = await fetch("/api/upload", { method: "POST", body: form })
             if (!res.ok) throw new Error("Upload failed")
             const data = await res.json()
-            if (data?.url) extraEditUrls.push(data.url)
+            if (data?.url) uploadedEditUrls.push(data.url)
           }
         } catch (e) {
           console.error(e)
@@ -122,20 +114,21 @@ export function AdminPanel() {
           setIsUploading(false)
         }
       }
-      // Persist update
+
+      // Combinar con imágenes existentes (eliminar duplicados), dando prioridad a las nuevas
       const existingImages = Array.isArray(editingProduct.images) ? editingProduct.images.filter(Boolean) : []
-      // Ensure cover first, then existing (without dup), then newly uploaded extras; cap to 4
-      const ordered = [editImageUrl || editingProduct.image || "", ...existingImages.filter((u) => u !== editImageUrl)]
-      const combined = [...ordered, ...extraEditUrls].filter(Boolean)
+      const combined = [...uploadedEditUrls, ...existingImages]
       let imagesFinal = Array.from(new Set(combined)).slice(0, 4)
       if (imagesFinal.length === 0) {
         const placeholder = `/placeholder.svg?height=200&width=300&query=${encodeURIComponent(editingProduct.name)}`
         imagesFinal = [placeholder]
       }
+
       const payload = {
         name: editingProduct.name,
         description: editingProduct.description,
-        image: imagesFinal[0] || editImageUrl,
+  technicalInfo: editingProduct.technicalInfo,
+        image: imagesFinal[0],
         images: imagesFinal.length ? imagesFinal : undefined,
         categoryId: editingProduct.categoryId,
         price: typeof editingProduct.price === "string" ? Number(String(editingProduct.price).replace(/[^0-9.]/g, "")) : editingProduct.price,
@@ -149,39 +142,21 @@ export function AdminPanel() {
         const updated = await res.json()
         setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
       }
-      setEditImageFile(null)
-      setEditExtraImageFiles([])
+      setEditAllImageFiles([])
       setEditingProduct(null)
   } else if (isAddingProduct && newProduct.name && newProduct.brand && newProduct.price) {
-      // If a file was selected, upload it first
-      let imageUrl = newProduct.image || ""
-      if (newImageFile) {
+      // Upload all selected images (first becomes cover)
+      let uploadedUrls: string[] = []
+      if (newAllImageFiles.length > 0) {
         try {
           setIsUploading(true)
-          const form = new FormData()
-          form.append("file", newImageFile)
-          const res = await fetch("/api/upload", { method: "POST", body: form })
-          if (!res.ok) throw new Error("Upload failed")
-          const data = await res.json()
-          imageUrl = data.url || imageUrl
-        } catch (e) {
-          console.error(e)
-        } finally {
-          setIsUploading(false)
-        }
-      }
-      // Upload any extra images selected during create
-      let extraCreateUrls: string[] = []
-      if (newExtraImageFiles.length > 0) {
-        try {
-          setIsUploading(true)
-          for (const f of newExtraImageFiles.slice(0, 3)) {
+          for (const f of newAllImageFiles.slice(0, 4)) {
             const form = new FormData()
             form.append("file", f)
             const res = await fetch("/api/upload", { method: "POST", body: form })
             if (!res.ok) throw new Error("Upload failed")
             const data = await res.json()
-            if (data?.url) extraCreateUrls.push(data.url)
+            if (data?.url) uploadedUrls.push(data.url)
           }
         } catch (e) {
           console.error(e)
@@ -189,12 +164,14 @@ export function AdminPanel() {
           setIsUploading(false)
         }
       }
-      // Persist create
-      const preImages = [imageUrl || `/placeholder.svg?height=200&width=300&query=${encodeURIComponent(newProduct.name || "")}`, ...extraCreateUrls].filter(Boolean)
-      const imagesFinal = Array.from(new Set(preImages)).slice(0, 4)
+      if (uploadedUrls.length === 0) {
+        uploadedUrls = [`/placeholder.svg?height=200&width=300&query=${encodeURIComponent(newProduct.name || "")}`]
+      }
+      const imagesFinal = Array.from(new Set(uploadedUrls)).slice(0, 4)
       const payload = {
         name: newProduct.name,
         description: newProduct.description,
+  technicalInfo: newProduct.technicalInfo,
         image: imagesFinal[0],
         images: imagesFinal.length ? imagesFinal : undefined,
         categoryId: newProduct.categoryId ?? categories[0]?.id,
@@ -214,14 +191,16 @@ export function AdminPanel() {
         brand: "",
         price: "",
         description: "",
+  technicalInfo: "",
         image: "",
         categoryId: undefined,
         rating: 5,
         features: [],
         specifications: {},
       })
-      setNewImageFile(null)
-      setNewExtraImageFiles([])
+  setNewImageFile(null)
+  setNewExtraImageFiles([])
+  setNewAllImageFiles([])
       setIsAddingProduct(false)
     }
   }
@@ -424,15 +403,31 @@ export function AdminPanel() {
 
           {/* Add Product Dialog */}
           <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Agregar Nuevo Producto</DialogTitle>
-                <DialogDescription>Completa la información del producto</DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <DialogContent showCloseButton={false} className="top-0 left-0 translate-x-0 translate-y-0 w-screen h-screen sm:w-screen sm:h-screen max-w-none sm:max-w-none max-h-none rounded-none border-0 overflow-y-auto">
+              {/* Top brand bar */}
+              <div className="sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+                <div className="h-12 px-4 md:px-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img src="/placeholder-logo.svg" alt="MULTISERVICIOS" className="h-6 w-6" />
+                    <span className="font-semibold truncate">MULTISERVICIOS</span>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="text-sm text-muted-foreground truncate">Agregar producto</span>
+                  </div>
+                  <DialogClose asChild>
+                    <button className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted text-muted-foreground" aria-label="Cerrar">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                  </DialogClose>
+                </div>
+              </div>
+              {/* Accessible title for screen readers */}
+              <DialogTitle className="sr-only">Agregar producto</DialogTitle>
+              {/* Content */}
+              <div className="px-4 md:px-6 py-4 md:py-6 pb-28">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="title">Título del Producto</Label>
+                    <Label htmlFor="title" className="flex items-center gap-2"><FileText className="w-4 h-4" /> Título del Producto</Label>
                     <Input
                       id="title"
                       value={newProduct.name || ""}
@@ -441,7 +436,7 @@ export function AdminPanel() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="brand">Marca</Label>
+                    <Label htmlFor="brand" className="flex items-center gap-2"><Building2 className="w-4 h-4" /> Marca</Label>
                     <Input
                       id="brand"
                       value={newProduct.brand || ""}
@@ -450,7 +445,7 @@ export function AdminPanel() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="price">Precio</Label>
+                    <Label htmlFor="price" className="flex items-center gap-2"><DollarSign className="w-4 h-4" /> Precio</Label>
                     <Input
                       id="price"
                       value={newProduct.price || ""}
@@ -479,42 +474,57 @@ export function AdminPanel() {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="image">Imagen del Producto</Label>
+                    <Label htmlFor="images" className="flex items-center gap-2"><ImagePlus className="w-4 h-4" /> Imágenes del producto (máx. 4)</Label>
                     <Input
-                      id="image"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null
-                        setNewImageFile(file)
-                      }}
-                    />
-                    {newImageFile ? (
-                      <p className="text-xs text-muted-foreground mt-1">{newImageFile.name}</p>
-                    ) : newProduct.image ? (
-                      <p className="text-xs text-muted-foreground mt-1">{newProduct.image}</p>
-                    ) : null}
-                  </div>
-                  <div>
-                    <Label htmlFor="extra-images">Imágenes adicionales (hasta 3)</Label>
-                    <Input
-                      id="extra-images"
+                      id="images"
                       type="file"
                       accept="image/*"
                       multiple
                       onChange={(e) => {
                         const files = Array.from(e.target.files || []) as File[]
-                        setNewExtraImageFiles(files.slice(0, 3))
+                        setNewAllImageFiles(files.slice(0, 4))
                       }}
                     />
-                    {newExtraImageFiles.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {newExtraImageFiles.map((f) => f.name).join(", ")}
-                      </p>
+                    {newAllImageFiles.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">{newAllImageFiles.map((f) => f.name).join(", ")}</p>
+                    )}
+                    {newAllImageFiles.length > 0 && (
+                      <div className="mt-2 grid grid-cols-4 gap-2">
+                        {newAllImageFiles.map((f, i) => (
+                          <div key={i} className="relative group border rounded overflow-hidden bg-white">
+                            <img src={URL.createObjectURL(f)} alt={`prev-${i}`} className="w-full h-20 object-contain bg-white" />
+                            <div className="absolute top-1 left-1">
+                              {i === 0 ? (
+                                <Badge variant="secondary" className="text-[10px]">Portada</Badge>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="text-[10px] px-1 py-0.5 rounded bg-muted hover:bg-muted/80"
+                                  onClick={() => {
+                                    const copy = [...newAllImageFiles]
+                                    const [m] = copy.splice(i, 1)
+                                    copy.unshift(m)
+                                    setNewAllImageFiles(copy)
+                                  }}
+                                >
+                                  Portada
+                                </button>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground h-6 w-6 rounded-full opacity-90 hover:opacity-100"
+                              onClick={() => setNewAllImageFiles(newAllImageFiles.filter((_, idx) => idx !== i))}
+                            >
+                              <X className="w-3 h-3 mx-auto" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="rating">Rating (1-5)</Label>
+                    <Label htmlFor="rating" className="flex items-center gap-2"><Star className="w-4 h-4" /> Rating (1-5)</Label>
                     <Input
                       id="rating"
                       type="number"
@@ -595,8 +605,35 @@ export function AdminPanel() {
                 </div>
               </div>
               {/* Especificaciones técnicas - Crear */}
+              {/* Información técnica - Crear */}
               <div className="mt-2">
+                <Label htmlFor="technical-info-create" className="flex items-center gap-2"><Info className="w-4 h-4" /> Información técnica (texto libre)</Label>
+                <Textarea
+                  id="technical-info-create"
+                  value={newProduct.technicalInfo || ""}
+                  onChange={(e) => setNewProduct({ ...newProduct, technicalInfo: e.target.value })}
+                  placeholder="Detalles técnicos generales, compatibilidades, normas, etc."
+                  rows={3}
+                />
+              </div>
+              {/* Especificaciones técnicas - Crear */}
+              <div className="mt-6">
                 <Label>Especificaciones técnicas</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {[
+                    "Modelo",
+                    "SKU",
+                    "Garantía",
+                    "Color",
+                    "Dimensiones",
+                    "Peso",
+                    "Condición",
+                  ].map((preset) => (
+                    <Button key={preset} type="button" size="sm" variant="outline" onClick={() => setNewSpecKey(preset)}>
+                      {preset}
+                    </Button>
+                  ))}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
                   <Input
                     placeholder="Clave (ej: Potencia)"
@@ -647,14 +684,62 @@ export function AdminPanel() {
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 mt-6">
-                <Button onClick={handleSaveProduct} className="flex-1" disabled={isUploading}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {isUploading ? "Subiendo imagen..." : "Guardar Producto"}
-                </Button>
+              {/* Características - Crear */}
+              <div className="mt-6">
+                <Label>Características</Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+                  <Input
+                    placeholder="Ej: Inverter, Wifi, Bajo consumo"
+                    value={newFeatureValue}
+                    onChange={(e) => setNewFeatureValue(e.target.value)}
+                  />
+                  <div className="md:col-span-2 flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const f = newFeatureValue.trim()
+                        if (!f) return
+                        setNewProduct((prev) => ({ ...prev, features: [...(prev.features || []), f] }))
+                        setNewFeatureValue("")
+                      }}
+                    >
+                      Agregar característica
+                    </Button>
+                  </div>
+                </div>
+                {Array.isArray(newProduct.features) && newProduct.features.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {newProduct.features.map((f, i) => (
+                      <Badge key={`${f}-${i}`} variant="secondary" className="flex items-center gap-1">
+                        {f}
+                        <button
+                          type="button"
+                          className="ml-1 text-muted-foreground hover:text-foreground"
+                          onClick={() =>
+                            setNewProduct((prev) => ({
+                              ...prev,
+                              features: (prev.features || []).filter((_, idx) => idx !== i),
+                            }))
+                          }
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              </div>
+              {/* Bottom action bar */}
+              <div className="sticky bottom-0 left-0 right-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t px-4 md:px-6 py-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <Button variant="outline" onClick={() => setIsAddingProduct(false)}>
                   <X className="w-4 h-4 mr-2" />
                   Cancelar
+                </Button>
+                <Button onClick={handleSaveProduct} disabled={isUploading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {isUploading ? "Subiendo imagen..." : "Guardar Producto"}
                 </Button>
               </div>
             </DialogContent>
@@ -662,13 +747,28 @@ export function AdminPanel() {
 
           {/* Edit Product Dialog */}
           <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
-            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Editar Producto</DialogTitle>
-                <DialogDescription>Modifica la información del producto</DialogDescription>
-              </DialogHeader>
+            <DialogContent showCloseButton={false} className="top-0 left-0 translate-x-0 translate-y-0 w-screen h-screen sm:w-screen sm:h-screen max-w-none sm:max-w-none max-h-none rounded-none border-0 overflow-y-auto">
+              {/* Top brand bar */}
+              <div className="sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+                <div className="h-12 px-4 md:px-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img src="/placeholder-logo.svg" alt="MULTISERVICIOS" className="h-6 w-6" />
+                    <span className="font-semibold truncate">MULTISERVICIOS</span>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="text-sm text-muted-foreground truncate">Editar producto</span>
+                  </div>
+                  <DialogClose asChild>
+                    <button className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted text-muted-foreground" aria-label="Cerrar">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                  </DialogClose>
+                </div>
+              </div>
+              {/* Accessible title for screen readers */}
+              <DialogTitle className="sr-only">Editar producto</DialogTitle>
+              {/* Content */}
               {editingProduct && (
-                <div className="space-y-6">
+                <div className="px-4 md:px-6 py-4 md:py-6 pb-28 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-4">
                       <div>
@@ -698,12 +798,54 @@ export function AdminPanel() {
                     </div>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="edit-image">URL de Imagen</Label>
+                        <Label htmlFor="edit-images" className="flex items-center gap-2"><ImagePlus className="w-4 h-4" /> Subir imágenes (máx. 4)</Label>
                         <Input
-                          id="edit-image"
-                          value={editingProduct.image || ""}
-                          onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
+                          id="edit-images"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []) as File[]
+                            setEditAllImageFiles(files.slice(0, 4))
+                          }}
                         />
+                        {editAllImageFiles.length > 0 && (
+                          <div className="mt-2 grid grid-cols-4 gap-2">
+                            {editAllImageFiles.map((f, i) => (
+                              <div key={i} className="relative group border rounded overflow-hidden bg-white">
+                                <img src={URL.createObjectURL(f)} alt={`prev-edit-${i}`} className="w-full h-20 object-contain bg-white" />
+                                <div className="absolute top-1 left-1">
+                                  {i === 0 ? (
+                                    <Badge variant="secondary" className="text-[10px]">Portada</Badge>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="text-[10px] px-1 py-0.5 rounded bg-muted hover:bg-muted/80"
+                                      onClick={() => {
+                                        const copy = [...editAllImageFiles]
+                                        const [m] = copy.splice(i, 1)
+                                        copy.unshift(m)
+                                        setEditAllImageFiles(copy)
+                                      }}
+                                    >
+                                      Portada
+                                    </button>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground h-6 w-6 rounded-full opacity-90 hover:opacity-100"
+                                  onClick={() => setEditAllImageFiles(editAllImageFiles.filter((_, idx) => idx !== i))}
+                                >
+                                  <X className="w-3 h-3 mx-auto" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {editAllImageFiles.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">Se subirán {editAllImageFiles.length} imágenes. La primera será la portada.</p>
+                        )}
                       </div>
                       {Array.isArray(editingProduct.images) && editingProduct.images.length > 0 && (
                         <div>
@@ -784,88 +926,48 @@ export function AdminPanel() {
                           </div>
                         </div>
                       )}
-                      <div>
-                        <Label htmlFor="edit-image-file">Cambiar imagen (opcional)</Label>
-                        <Input
-                          id="edit-image-file"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setEditImageFile(e.target.files?.[0] || null)}
-                        />
-                        {editImageFile && (
-                          <p className="text-xs text-muted-foreground mt-1">{editImageFile.name}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="edit-extra-images">Agregar imágenes (hasta 3)</Label>
-                        <Input
-                          id="edit-extra-images"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []) as File[]
-                            setEditExtraImageFiles(files.slice(0, 3))
-                          }}
-                        />
-                        {editExtraImageFiles.length > 0 && (
-                          <div className="mt-1 space-y-1">
-                            {editExtraImageFiles.map((f, i) => (
-                              <div
-                                key={i}
-                                className="flex items-center justify-between text-xs"
-                                draggable
-                                onDragStart={() => setDragIdxEditExtras(i)}
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={() => {
-                                  if (dragIdxEditExtras === null || dragIdxEditExtras === i) return
-                                  const arr = reorder(editExtraImageFiles, dragIdxEditExtras, i)
-                                  setEditExtraImageFiles(arr)
-                                  setDragIdxEditExtras(null)
-                                }}
-                              >
-                                <span className="truncate mr-2">{f.name}</span>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    size="icon"
-                                    variant="outline"
-                                    className="h-6 w-6"
-                                    disabled={i === 0}
-                                    onClick={() => {
-                                      const arr = [...editExtraImageFiles]
-                                      ;[arr[i - 1], arr[i]] = [arr[i], arr[i - 1]]
-                                      setEditExtraImageFiles(arr)
-                                    }}
-                                  >
-                                    <ChevronLeft className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="outline"
-                                    className="h-6 w-6"
-                                    disabled={i === editExtraImageFiles.length - 1}
-                                    onClick={() => {
-                                      const arr = [...editExtraImageFiles]
-                                      ;[arr[i + 1], arr[i]] = [arr[i], arr[i + 1]]
-                                      setEditExtraImageFiles(arr)
-                                    }}
-                                  >
-                                    <ChevronRight className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="destructive"
-                                    className="h-6 w-6"
-                                    onClick={() => setEditExtraImageFiles(editExtraImageFiles.filter((_, idx) => idx !== i))}
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                                  {/* Características - Editar */}
+                                  <div>
+                                    <Label>Características</Label>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+                                      <Input
+                                        placeholder="Añadir característica"
+                                        value={editFeatureValue}
+                                        onChange={(e) => setEditFeatureValue(e.target.value)}
+                                      />
+                                      <div className="md:col-span-2 flex items-center gap-2">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          onClick={() => {
+                                            const f = editFeatureValue.trim()
+                                            if (!f) return
+                                            addFeature(String(editingProduct.id), f)
+                                            setEditFeatureValue("")
+                                          }}
+                                        >
+                                          Agregar característica
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    {Array.isArray(editingProduct.features) && editingProduct.features.length > 0 && (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {(editingProduct.features || []).map((f, i) => (
+                                          <Badge key={`${f}-${i}`} variant="secondary" className="flex items-center gap-1">
+                                            {f}
+                                            <button
+                                              type="button"
+                                              className="ml-1 text-muted-foreground hover:text-foreground"
+                                              onClick={() => removeFeature(String(editingProduct.id), i)}
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                      
                       <div>
                         <Label htmlFor="edit-rating">Rating</Label>
                         <Input
@@ -909,9 +1011,34 @@ export function AdminPanel() {
                       rows={3}
                     />
                   </div>
+                  {/* Información técnica - Editar */}
+                  <div>
+                    <Label htmlFor="edit-technical-info">Información técnica (texto libre)</Label>
+                    <Textarea
+                      id="edit-technical-info"
+                      value={editingProduct.technicalInfo || ""}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, technicalInfo: e.target.value })}
+                      rows={3}
+                    />
+                  </div>
                   {/* Especificaciones técnicas - Editar */}
                   <div>
                     <Label>Especificaciones técnicas</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {[
+                        "Modelo",
+                        "SKU",
+                        "Garantía",
+                        "Color",
+                        "Dimensiones",
+                        "Peso",
+                        "Condición",
+                      ].map((preset) => (
+                        <Button key={preset} type="button" size="sm" variant="outline" onClick={() => setEditSpecKey(preset)}>
+                          {preset}
+                        </Button>
+                      ))}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
                       <Input
                         placeholder="Clave (ej: Potencia)"
@@ -962,18 +1089,19 @@ export function AdminPanel() {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleSaveProduct} className="flex-1">
-                      <Save className="w-4 h-4 mr-2" />
-                      Guardar Cambios
-                    </Button>
-                    <Button variant="outline" onClick={() => setEditingProduct(null)}>
-                      <X className="w-4 h-4 mr-2" />
-                      Cancelar
-                    </Button>
-                  </div>
                 </div>
               )}
+              {/* Bottom action bar */}
+              <div className="sticky bottom-0 left-0 right-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t px-4 md:px-6 py-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="outline" onClick={() => setEditingProduct(null)}>
+                  <X className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveProduct} disabled={isUploading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {isUploading ? "Subiendo imagen..." : "Guardar Cambios"}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </TabsContent>

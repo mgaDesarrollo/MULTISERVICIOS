@@ -28,6 +28,7 @@ model Product {
   id             Int       @id @default(autoincrement())
   name           String
   description    String?
+  technicalInfo  String?
   image          String?
   images         String[]  @default([])
   price          Decimal   @db.Decimal(10,2)

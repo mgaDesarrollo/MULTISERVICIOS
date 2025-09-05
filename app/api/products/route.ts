@@ -15,10 +15,10 @@ export async function POST(request: Request) {
   const cookieStore = await cookies()
   const isAdmin = Boolean(cookieStore.get("admin_session")?.value)
   if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { name, description, image, images, categoryId, price, brand, rating, features, specifications } = await request.json()
+  const { name, description, technicalInfo, image, images, categoryId, price, brand, rating, features, specifications } = await request.json()
   try {
     const created = await prisma.product.create({
-      data: { name, description, image, images, categoryId, price, brand, rating, features, specifications },
+      data: { name, description, technicalInfo, image, images, categoryId, price, brand, rating, features, specifications },
     })
     return NextResponse.json(created)
   } catch (error: any) {

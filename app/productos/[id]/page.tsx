@@ -81,6 +81,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     take: 6,
     orderBy: { id: "desc" },
   })
+  const createdDate = product.createdAt ? new Date(product.createdAt as any) : null
 
   return (
     <div className="w-full min-h-screen">
@@ -147,6 +148,13 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <p className="text-muted-foreground">{product.description}</p>
           )}
 
+          {Boolean((product as any).technicalInfo) && (
+            <div>
+              <h3 className="font-semibold mb-2">Información técnica</h3>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">{String((product as any).technicalInfo)}</p>
+            </div>
+          )}
+
       {product.specifications && typeof product.specifications === "object" && (
             <div>
         <h3 className="font-semibold mb-2">Especificaciones técnicas</h3>
@@ -171,6 +179,19 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
           )}
+
+          <div className="border rounded-md p-3 sm:p-4">
+            <h3 className="font-semibold mb-2">Ficha del producto</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Marca</span><span className="font-medium">{product.brand || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Categoría</span><span className="font-medium">{category?.name || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">ID</span><span className="font-medium">{product.id}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Rating</span><span className="font-medium">{Number(product.rating ?? 4.5).toFixed(1)} / 5</span></div>
+              {createdDate && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Fecha de alta</span><span className="font-medium">{createdDate.toLocaleDateString()}</span></div>
+              )}
+            </div>
+          </div>
 
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button className="flex-1">
