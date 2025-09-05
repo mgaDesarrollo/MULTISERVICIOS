@@ -4,15 +4,22 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
+import { usePathname, useRouter } from "next/navigation"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { theme, setTheme } = useTheme()
+  const router = useRouter()
+  const pathname = usePathname()
 
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId)
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" })
+  const goTo = (sectionId: string) => {
+    // If we're on home page, smooth scroll; otherwise navigate with hash
+    if (pathname === "/") {
+      const element = document.getElementById(sectionId)
+      if (element) element.scrollIntoView({ behavior: "smooth" })
+      else router.push(`/#${sectionId}`)
+    } else {
+      router.push(`/#${sectionId}`)
     }
     setIsMenuOpen(false)
   }
@@ -26,12 +33,12 @@ export function Header() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18 relative">
           <div className="flex-shrink-0 w-64">
-            <div className="flex items-center group cursor-pointer" onClick={() => scrollToSection("inicio")}>
+            <div className="flex items-center group cursor-pointer" onClick={() => goTo("inicio")}>
               <div className="relative">
                 {/* Main logo container with multiple layers */}
                 <div className="relative w-14 h-14 rounded-xl overflow-hidden group-hover:scale-110 transition-all duration-500 ease-out">
                   {/* Animated background layers */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 via-purple-500 via-pink-500 to-orange-400 animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 via-purple-500 to-orange-400 animate-pulse"></div>
                   <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent animate-ping opacity-75"></div>
 
                   {/* Holographic border effect */}
@@ -84,31 +91,31 @@ export function Header() {
           <nav className="hidden md:block flex-1">
             <div className="flex items-center justify-center space-x-8">
               <button
-                onClick={() => scrollToSection("inicio")}
+                onClick={() => goTo("inicio")}
                 className="text-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
               >
                 Inicio
               </button>
               <button
-                onClick={() => scrollToSection("productos")}
+                onClick={() => goTo("productos")}
                 className="text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
               >
                 Productos
               </button>
               <button
-                onClick={() => scrollToSection("prestamos")}
+                onClick={() => goTo("prestamos")}
                 className="text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
               >
                 Préstamos
               </button>
               <button
-                onClick={() => scrollToSection("nosotros")}
+                onClick={() => goTo("nosotros")}
                 className="text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
               >
                 Nosotros
               </button>
               <button
-                onClick={() => scrollToSection("contacto")}
+                onClick={() => goTo("contacto")}
                 className="text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
               >
                 Contacto
@@ -123,7 +130,7 @@ export function Header() {
               <span className="sr-only">Toggle theme</span>
             </Button>
             <Button
-              onClick={() => scrollToSection("contacto")}
+              onClick={() => goTo("contacto")}
               className="bg-gradient-to-r from-secondary to-secondary/90 hover:from-secondary/90 hover:to-secondary shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 px-6 py-2.5"
             >
               Solicitar Asesoría
@@ -146,38 +153,38 @@ export function Header() {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-card rounded-lg mt-2">
               <button
-                onClick={() => scrollToSection("inicio")}
+                onClick={() => goTo("inicio")}
                 className="block px-3 py-2 text-base font-medium text-foreground hover:text-primary w-full text-left"
               >
                 Inicio
               </button>
               <button
-                onClick={() => scrollToSection("productos")}
+                onClick={() => goTo("productos")}
                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary w-full text-left"
               >
                 Productos
               </button>
               <button
-                onClick={() => scrollToSection("prestamos")}
+                onClick={() => goTo("prestamos")}
                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary w-full text-left"
               >
                 Préstamos
               </button>
               <button
-                onClick={() => scrollToSection("nosotros")}
+                onClick={() => goTo("nosotros")}
                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary w-full text-left"
               >
                 Nosotros
               </button>
               <button
-                onClick={() => scrollToSection("contacto")}
+                onClick={() => goTo("contacto")}
                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary w-full text-left"
               >
                 Contacto
               </button>
               <div className="px-3 py-2">
                 <Button
-                  onClick={() => scrollToSection("contacto")}
+                  onClick={() => goTo("contacto")}
                   className="w-full bg-secondary hover:bg-secondary/90"
                 >
                   Solicitar Asesoría

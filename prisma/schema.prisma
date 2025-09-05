@@ -1,0 +1,41 @@
+// Prisma schema for MULTISERVICIOS
+// Set your DATABASE_URL in .env (e.g., postgresql://user:pass@host:5432/dbname)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id       Int     @id @default(autoincrement())
+  username String  @unique
+  password String
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id             Int       @id @default(autoincrement())
+  name           String
+  description    String?
+  image          String?
+  images         String[]  @default([])
+  price          Decimal   @db.Decimal(10,2)
+  brand          String?
+  rating         Float?    @default(4.5)
+  features       Json?
+  specifications Json?
+  category       Category  @relation(fields: [categoryId], references: [id])
+  categoryId     Int
+  createdAt      DateTime  @default(now())
+}

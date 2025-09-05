@@ -37,7 +37,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`${geist.variable} ${manrope.variable} ${oswald.variable} antialiased`}>
+    <html
+      lang="es"
+      suppressHydrationWarning
+      className={`${geist.variable} ${manrope.variable} ${oswald.variable} antialiased`}
+    >
       <body className="font-sans">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}

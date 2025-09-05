@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,346 +23,110 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
-const productCategories = {
-  cocina: {
-    name: "Cocina",
-    icon: Home,
-    products: [
-      {
-        title: "Horno Eléctrico Empotrable",
-        description: "Horno eléctrico de 60cm con convección, grill y 8 funciones de cocción programables.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$899",
-        brand: "Samsung",
-        rating: 4.5,
-        features: ["Convección", "Grill", "8 Funciones", "Timer Digital"],
-        specifications: {
-          Capacidad: "65 litros",
-          Potencia: "3500W",
-          Dimensiones: "60 x 60 x 55 cm",
-          Garantía: "2 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Horno Eléctrico Empotrable por $899",
-      },
-      {
-        title: "Microondas con Grill",
-        description: "Microondas de 1.4 pies cúbicos con función grill, panel táctil y 10 niveles de potencia.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$399",
-        brand: "LG",
-        rating: 4.3,
-        features: ["Grill", "Panel Táctil", "10 Niveles", "Descongelado Auto"],
-        specifications: {
-          Capacidad: "1.4 pies³",
-          Potencia: "1000W",
-          Dimensiones: "48 x 38 x 28 cm",
-          Garantía: "1 año",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Microondas con Grill por $399",
-      },
-      {
-        title: "Tope de Cocina a Gas",
-        description: "Tope de cocina de 4 hornillas con encendido automático y parrillas de hierro fundido.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$549",
-        brand: "Whirlpool",
-        rating: 4.7,
-        features: ["4 Hornillas", "Encendido Auto", "Hierro Fundido", "Válvulas Seguridad"],
-        specifications: {
-          Hornillas: "4 quemadores",
-          Material: "Acero inoxidable",
-          Dimensiones: "60 x 52 x 8 cm",
-          Garantía: "3 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Tope de Cocina a Gas por $549",
-      },
-      {
-        title: "Campana Extractora",
-        description: "Campana extractora de 60cm con 3 velocidades, filtros lavables y iluminación LED.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$299",
-        brand: "Bosch",
-        rating: 4.4,
-        features: ["3 Velocidades", "Filtros Lavables", "LED", "Control Táctil"],
-        specifications: {
-          Ancho: "60 cm",
-          Extracción: "650 m³/h",
-          Ruido: "< 65 dB",
-          Garantía: "2 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar una Campana Extractora por $299",
-      },
-    ],
-  },
-  heladeras: {
-    name: "Heladeras",
-    icon: Snowflake,
-    products: [
-      {
-        title: "Heladera Side by Side",
-        description: "Heladera de 25 pies cúbicos con dispensador de agua y hielo, tecnología inverter.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$1,899",
-        brand: "Samsung",
-        rating: 4.6,
-        features: ["Dispensador Agua/Hielo", "Inverter", "No Frost", "Control Digital"],
-        specifications: {
-          Capacidad: "25 pies³",
-          Eficiencia: "A++",
-          Dimensiones: "91 x 178 x 69 cm",
-          Garantía: "5 años compresor",
-        },
-        whatsappMessage: "Hola, me interesa financiar una Heladera Side by Side por $1,899",
-      },
-      {
-        title: "Heladera French Door",
-        description: "Heladera premium de 22 pies cúbicos con cajones inferiores y control digital.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$1,599",
-        brand: "LG",
-        rating: 4.5,
-        features: ["French Door", "Cajones Inferiores", "Control Digital", "Multi Air Flow"],
-        specifications: {
-          Capacidad: "22 pies³",
-          Eficiencia: "A+",
-          Dimensiones: "83 x 175 x 67 cm",
-          Garantía: "3 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar una Heladera French Door por $1,599",
-      },
-      {
-        title: "Heladera Compacta",
-        description: "Heladera de 12 pies cúbicos ideal para espacios pequeños, eficiencia energética A+.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$699",
-        brand: "Whirlpool",
-        rating: 4.2,
-        features: ["Compacta", "A+ Eficiencia", "Reversible", "Ajustable"],
-        specifications: {
-          Capacidad: "12 pies³",
-          Eficiencia: "A+",
-          Dimensiones: "60 x 145 x 60 cm",
-          Garantía: "2 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar una Heladera Compacta por $699",
-      },
-      {
-        title: "Freezer Vertical",
-        description: "Congelador vertical de 8 pies cúbicos con 5 cajones y sistema No Frost.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$799",
-        brand: "Bosch",
-        rating: 4.4,
-        features: ["5 Cajones", "No Frost", "Alarma Temperatura", "Super Congelado"],
-        specifications: {
-          Capacidad: "8 pies³",
-          Cajones: "5 niveles",
-          Dimensiones: "60 x 155 x 60 cm",
-          Garantía: "3 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Freezer Vertical por $799",
-      },
-    ],
-  },
-  lavanderia: {
-    name: "Lavandería",
-    icon: Zap,
-    products: [
-      {
-        title: "Lavadora Automática 18kg",
-        description: "Lavadora de carga frontal con 12 programas de lavado y eficiencia energética A++.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$799",
-        brand: "Samsung",
-        rating: 4.5,
-        features: ["18kg Capacidad", "12 Programas", "A++ Eficiencia", "Carga Frontal"],
-        specifications: {
-          Capacidad: "18 kg",
-          Programas: "12 ciclos",
-          Eficiencia: "A++",
-          Garantía: "3 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar una Lavadora Automática 18kg por $799",
-      },
-      {
-        title: "Secadora a Gas",
-        description: "Secadora de 15kg con sensor de humedad y múltiples ciclos de secado.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$699",
-        brand: "LG",
-        rating: 4.3,
-        features: ["15kg Capacidad", "Sensor Humedad", "Gas", "Múltiples Ciclos"],
-        specifications: {
-          Capacidad: "15 kg",
-          Combustible: "Gas natural",
-          Sensor: "Humedad automático",
-          Garantía: "2 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar una Secadora a Gas por $699",
-      },
-      {
-        title: "Centro de Lavado",
-        description: "Combo lavadora-secadora todo en uno, ideal para espacios reducidos.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$1,199",
-        brand: "Whirlpool",
-        rating: 4.4,
-        features: ["Todo en Uno", "Compacto", "Lavado y Secado", "Ahorra Espacio"],
-        specifications: {
-          Capacidad: "10/7 kg",
-          Funciones: "Lava y seca",
-          Dimensiones: "60 x 85 x 60 cm",
-          Garantía: "3 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Centro de Lavado por $1,199",
-      },
-    ],
-  },
-  tecnologia: {
-    name: "Tecnología",
-    icon: Monitor,
-    products: [
-      {
-        title: "Smart TV 65 pulgadas",
-        description: "Televisor 4K UHD con sistema operativo Android TV y conectividad WiFi.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$899",
-        brand: "Samsung",
-        rating: 4.6,
-        features: ["4K UHD", "Android TV", "WiFi", "HDR"],
-        specifications: {
-          Pantalla: "65 pulgadas",
-          Resolución: "4K UHD",
-          Sistema: "Android TV",
-          Garantía: "2 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Smart TV 65 pulgadas por $899",
-      },
-      {
-        title: "Aire Acondicionado Split",
-        description: "Sistema de climatización 18,000 BTU con tecnología inverter y control remoto.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$649",
-        brand: "LG",
-        rating: 4.4,
-        features: ["18,000 BTU", "Inverter", "Control Remoto", "Filtro HEPA"],
-        specifications: {
-          Capacidad: "18,000 BTU",
-          Tecnología: "Inverter",
-          Área: "Hasta 35 m²",
-          Garantía: "3 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Aire Acondicionado Split por $649",
-      },
-      {
-        title: "Sistema de Sonido",
-        description: "Equipo de sonido con Bluetooth, USB y radio FM de alta potencia.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$399",
-        brand: "Sony",
-        rating: 4.2,
-        features: ["Bluetooth", "USB", "Radio FM", "Alta Potencia"],
-        specifications: {
-          Potencia: "1000W",
-          Conectividad: "Bluetooth 5.0",
-          Formatos: "MP3, USB, FM",
-          Garantía: "1 año",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Sistema de Sonido por $399",
-      },
-    ],
-  },
-  muebles: {
-    name: "Muebles",
-    icon: Sofa,
-    products: [
-      {
-        title: "Sala de 3 Piezas",
-        description: "Juego de sala completo con sofá de 3 puestos, 2 puestos y mesa de centro.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$1,499",
-        brand: "Ashley",
-        rating: 4.5,
-        features: ["3 Piezas", "Tapizado Premium", "Mesa Centro", "Garantía Estructura"],
-        specifications: {
-          Piezas: "Sofá 3p, 2p, mesa",
-          Material: "Tela premium",
-          Estructura: "Madera sólida",
-          Garantía: "2 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar una Sala de 3 Piezas por $1,499",
-      },
-      {
-        title: "Comedor 6 Sillas",
-        description: "Mesa de comedor de madera con 6 sillas tapizadas, diseño contemporáneo.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$899",
-        brand: "IKEA",
-        rating: 4.3,
-        features: ["6 Sillas", "Madera Sólida", "Tapizado", "Contemporáneo"],
-        specifications: {
-          Mesa: "150 x 90 cm",
-          Material: "Madera de roble",
-          Sillas: "6 tapizadas",
-          Garantía: "3 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Comedor 6 Sillas por $899",
-      },
-      {
-        title: "Dormitorio Matrimonial",
-        description: "Juego de dormitorio completo: cama, 2 mesas de noche y cómoda con espejo.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$1,299",
-        brand: "La-Z-Boy",
-        rating: 4.6,
-        features: ["Cama King", "2 Mesas Noche", "Cómoda", "Espejo"],
-        specifications: {
-          Cama: "King size",
-          Piezas: "4 elementos",
-          Material: "MDF enchapado",
-          Garantía: "2 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Dormitorio Matrimonial por $1,299",
-      },
-      {
-        title: "Escritorio Ejecutivo",
-        description: "Escritorio de oficina con cajones, estantes y silla ergonómica incluida.",
-        image: "/placeholder.svg?height=200&width=300",
-        price: "$599",
-        brand: "Herman Miller",
-        rating: 4.4,
-        features: ["Cajones", "Estantes", "Silla Incluida", "Ergonómico"],
-        specifications: {
-          Dimensiones: "120 x 60 x 75 cm",
-          Cajones: "3 cajones",
-          Silla: "Ergonómica incluida",
-          Garantía: "3 años",
-        },
-        whatsappMessage: "Hola, me interesa financiar un Escritorio Ejecutivo por $599",
-      },
-    ],
-  },
+// Mapa para asignar iconos por categoría cuando vengan de la base de datos
+const categoryIcons: Record<string, any> = {
+  cocina: Home,
+  heladeras: Snowflake,
+  lavanderia: Zap,
+  tecnologia: Monitor,
+  muebles: Sofa,
 }
 
+// Eliminado mock de productos: el catálogo se cargará 100% desde la base de datos
+
 export function ProductsSection() {
-  const [activeCategory, setActiveCategory] = useState("cocina")
+  const [activeCategory, setActiveCategory] = useState("")
+  // Catálogo dinámico desde la base de datos
+  type Catalog = Record<string, { name: string; icon: any; products: any[] }>
+  const [catalog, setCatalog] = useState<Catalog>({} as Catalog)
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
   const [cart, setCart] = useState<Array<{ product: any; category: string; quantity: number }>>([])
-  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const router = useRouter()
   const [priceFilter, setPriceFilter] = useState("all")
   const [brandFilter, setBrandFilter] = useState("all")
   const [sortBy, setSortBy] = useState("name")
   const [filtersOpen, setFiltersOpen] = useState(false)
+
+  useEffect(() => {
+    // Preselect tab from hash #productos-<categoryId>
+    const hash = typeof window !== "undefined" ? window.location.hash : ""
+    const match = hash.match(/#productos-(\d+)/)
+    if (match && match[1]) {
+      setActiveCategory(match[1])
+    }
+
+    let cancelled = false
+
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const [cats, prods] = await Promise.all([
+          fetch("/api/categories", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
+          fetch("/api/products", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
+        ])
+        if (!Array.isArray(cats) || !Array.isArray(prods) || cancelled) return
+
+        const byId: Record<string, { name: string; icon: any; products: any[] }> = {}
+        for (const c of cats) {
+          const slug = String(c.id ?? c.name ?? "").toLowerCase().replace(/\s+/g, "-")
+          const tabKey = String(c.id ?? slug)
+          byId[slug] = {
+            name: c.name ?? slug,
+            icon: categoryIcons[slug] ?? Monitor,
+            products: [],
+          }
+        }
+  for (const p of prods) {
+      const slug = String(p.categoryId ?? "otros").toLowerCase().replace(/\s+/g, "-")
+      if (!byId[slug]) byId[slug] = { name: slug, icon: Monitor, products: [] }
+      byId[slug].products.push({
+            id: p.id,
+            title: p.name ?? "Producto",
+            description: p.description ?? "",
+      image: p.image ?? "/placeholder.svg",
+      images: Array.isArray(p.images) ? p.images : undefined,
+            price: p.price != null ? `$${String(p.price)}` : "$0",
+            brand: p.brand ?? "Genérico",
+            rating: Number(p.rating ?? 4.5),
+            features: Array.isArray(p.features) ? p.features : [],
+            specifications: typeof p.specifications === "object" && p.specifications ? p.specifications : {},
+            whatsappMessage: `Hola, me interesa ${p.name ?? "este producto"}.`,
+          })
+        }
+
+  // Si la categoría activa ya no existe, seleccionar la primera disponible
+  const keys = Object.keys(byId)
+  if (!byId[activeCategory]) setActiveCategory(keys[0] || "")
+        setCatalog(byId)
+        setLoadError("")
+      } catch (e) {
+        if (!cancelled) setLoadError("No se pudieron cargar los productos o categorías")
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    // Carga inicial
+    loadData()
+
+    // Auto-refresh cada 15s
+    const interval = setInterval(loadData, 15000)
+
+    // Refresh al volver al foco
+    const onFocus = () => loadData()
+    window.addEventListener("focus", onFocus)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [activeCategory])
 
   const getFilteredProducts = (products: any[]) => {
     let filtered = [...products]
@@ -409,7 +174,7 @@ export function ProductsSection() {
   }
 
   const getBrandsForCategory = (categoryKey: string) => {
-    const brands = productCategories[categoryKey as keyof typeof productCategories]?.products.map((p) => p.brand) || []
+    const brands = (catalog?.[categoryKey]?.products || []).map((p: any) => p.brand) || []
     return [...new Set(brands)]
   }
 
@@ -469,7 +234,7 @@ export function ProductsSection() {
   }
 
   return (
-    <section id="productos" className="py-20 bg-muted/30">
+    <section id="productos" className="py-20 bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <Badge variant="secondary" className="mb-4">
@@ -512,7 +277,7 @@ export function ProductsSection() {
                         <img
                           src={item.product.image || "/placeholder.svg"}
                           alt={item.product.title}
-                          className="w-16 h-16 object-cover rounded"
+                          className="w-16 h-16 object-contain rounded bg-white"
                         />
                         <div className="flex-1">
                           <h4 className="font-medium">{item.product.title}</h4>
@@ -557,11 +322,15 @@ export function ProductsSection() {
           </Sheet>
         </div>
 
-        <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
+        {loadError && (
+          <p className="text-center text-red-500 mb-4">{loadError}</p>
+        )}
+    <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
           <div className="mb-8 overflow-x-auto">
             <TabsList className="inline-flex w-max min-w-full grid-cols-none gap-1 p-1">
-              {Object.entries(productCategories).map(([key, category]) => {
-                const IconComponent = category.icon
+      {Object.entries(catalog).map(([key, categoryObj]) => {
+                const category = categoryObj as { name: string; icon: any; products: any[] }
+                const IconComponent = (category?.icon as any) || Monitor
                 return (
                   <TabsTrigger
                     key={key}
@@ -569,8 +338,8 @@ export function ProductsSection() {
                     className="flex items-center gap-1 md:gap-2 whitespace-nowrap px-2 md:px-4 py-2 text-xs md:text-sm"
                   >
                     <IconComponent className="w-3 h-3 md:w-4 md:h-4" />
-                    <span className="hidden sm:inline">{category.name}</span>
-                    <span className="sm:hidden">{category.name.slice(0, 4)}</span>
+                    <span className="hidden sm:inline">{String(category.name)}</span>
+                    <span className="sm:hidden">{String(category.name).slice(0, 4)}</span>
                   </TabsTrigger>
                 )
               })}
@@ -612,8 +381,8 @@ export function ProductsSection() {
                       <SelectContent>
                         <SelectItem value="all">Todas las marcas</SelectItem>
                         {getBrandsForCategory(activeCategory).map((brand) => (
-                          <SelectItem key={brand} value={brand}>
-                            {brand}
+                          <SelectItem key={String(brand)} value={String(brand)}>
+                            {String(brand)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -646,22 +415,40 @@ export function ProductsSection() {
             </Collapsible>
           </div>
 
-          {Object.entries(productCategories).map(([key, category]) => (
+          {Object.entries(catalog).map(([key, categoryObj]) => {
+            const category = categoryObj as { name: string; icon: any; products: any[] }
+            return (
             <TabsContent key={key} value={key}>
-              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-                {getFilteredProducts(category.products).map((product, index) => (
-                  <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+              {getFilteredProducts(category.products).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No hay productos disponibles en esta categoría</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+                  {getFilteredProducts(category.products).map((product, index) => (
+                  <Card
+                    key={index}
+                    className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                    onClick={() => router.push(`/productos/${product.id ?? index}`)}
+                  >
                     <CardHeader className="p-0">
                       <div className="relative overflow-hidden rounded-t-lg">
-                        <img
-                          src={product.image || "/placeholder.svg"}
-                          alt={product.title}
-                          className="w-full h-32 md:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute top-2 md:top-4 right-2 md:right-4">
-                          <Badge variant="secondary" className="text-xs">
-                            Financiable
-                          </Badge>
+                        <div className="w-full h-32 md:h-48 bg-white flex items-center justify-center">
+                          <img
+                            src={product.image || "/placeholder.svg"}
+                            alt={product.title}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        </div>
+                        <div className="absolute top-2 md:top-4 right-2 md:right-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-[10px] md:text-xs text-muted-foreground line-through">
+                              {(() => {
+                                const num = Number.parseFloat(String(product.price).replace(/[$,]/g, ""))
+                                if (Number.isNaN(num)) return product.price
+                                return `$${(num * 1.15).toFixed(2)}`
+                              })()}
+                            </span>
+                            <Badge variant="secondary" className="text-[10px] md:text-xs">15% off</Badge>
+                          </div>
                         </div>
                         <div className="absolute top-2 md:top-4 left-2 md:left-4">
                           <Badge
@@ -698,98 +485,17 @@ export function ProductsSection() {
                         {product.description}
                       </CardDescription>
                       <div className="space-y-1 md:space-y-2 mt-auto">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full bg-transparent text-xs md:text-sm h-8 md:h-10"
-                              onClick={() => setSelectedProduct(product)}
-                            >
-                              <Eye className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                              Ver Detalles
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>{product.title}</DialogTitle>
-                              <DialogDescription>Información detallada del producto</DialogDescription>
-                            </DialogHeader>
-                            {selectedProduct && (
-                              <div className="space-y-6">
-                                <img
-                                  src={selectedProduct.image || "/placeholder.svg"}
-                                  alt={selectedProduct.title}
-                                  className="w-full h-64 object-cover rounded-lg"
-                                />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                  <div>
-                                    <h4 className="font-semibold mb-2">Información General</h4>
-                                    <div className="space-y-2">
-                                      <div className="flex justify-between">
-                                        <span>Precio:</span>
-                                        <span className="font-bold text-primary">{selectedProduct.price}</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span>Marca:</span>
-                                        <span>{selectedProduct.brand}</span>
-                                      </div>
-                                      <div className="flex justify-between items-center">
-                                        <span>Calificación:</span>
-                                        <div className="flex items-center gap-1">
-                                          {[...Array(5)].map((_, i) => (
-                                            <Star
-                                              key={i}
-                                              className={`w-4 h-4 ${i < Math.floor(selectedProduct.rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
-                                            />
-                                          ))}
-                                          <span className="ml-1">({selectedProduct.rating})</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-semibold mb-2">Especificaciones</h4>
-                                    <div className="space-y-2">
-                                      {Object.entries(selectedProduct.specifications).map(([key, value]) => (
-                                        <div key={key} className="flex justify-between">
-                                          <span className="text-sm">{key}:</span>
-                                          <span className="text-sm font-medium">{value}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold mb-2">Características Principales</h4>
-                                  <div className="flex flex-wrap gap-2">
-                                    {selectedProduct.features.map((feature: string, idx: number) => (
-                                      <Badge key={idx} variant="secondary">
-                                        {feature}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button
-                                    className="flex-1 bg-transparent"
-                                    variant="outline"
-                                    onClick={() => addToCart(selectedProduct, key)}
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    <span className="hidden sm:inline">Agregar al </span>Carrito
-                                  </Button>
-                                  <Button
-                                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs md:text-sm h-8 md:h-10"
-                                    onClick={() => handleWhatsAppClick(selectedProduct.whatsappMessage)}
-                                  >
-                                    <MessageCircle className="w-4 h-4 mr-2" />
-                                    <span className="hidden sm:inline">Obtén tu </span>Financiamiento
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          variant="outline"
+                          className="w-full bg-transparent text-xs md:text-sm h-8 md:h-10"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/productos/${product.id ?? index}`)
+                          }}
+                        >
+                          <Eye className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                          Ver Detalles
+                        </Button>
                         <Button
                           className="w-full bg-transparent text-xs md:text-sm h-8 md:h-10"
                           variant="outline"
@@ -808,12 +514,15 @@ export function ProductsSection() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
-          ))}
+          )})}
         </Tabs>
       </div>
+
+  {/* Modal de detalles eliminado; ahora navegamos a /productos/[id] */}
     </section>
   )
 }
