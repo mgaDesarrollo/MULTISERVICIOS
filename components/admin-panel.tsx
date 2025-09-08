@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, DollarSign, Building2, FileText, Info } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Product {
   id: number
@@ -38,6 +39,7 @@ const initialCategories: Category[] = []
 const sampleProducts: Product[] = []
 
 export function AdminPanel() {
+  const { toast } = useToast()
   const [products, setProducts] = useState<Product[]>(sampleProducts)
   const [categories, setCategories] = useState<Category[]>(initialCategories)
   const [activeTab, setActiveTab] = useState("products")
@@ -59,6 +61,7 @@ export function AdminPanel() {
   const [dragIdxEditExtras, setDragIdxEditExtras] = useState<number | null>(null)
   const [dragIdxNewExtras, setDragIdxNewExtras] = useState<number | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number>(0)
   // Temp inputs for specifications in add/edit dialogs
   const [newSpecKey, setNewSpecKey] = useState("")
   const [newSpecValue, setNewSpecValue] = useState("")
@@ -100,18 +103,32 @@ export function AdminPanel() {
       if (editAllImageFiles.length > 0) {
         try {
           setIsUploading(true)
-          for (const f of editAllImageFiles.slice(0, 4)) {
+          const files = editAllImageFiles.slice(0, 4)
+          const total = files.length
+          let completed = 0
+          for (const f of files) {
+            if (!f.type.startsWith("image/")) {
+              toast({ title: "Archivo inválido", description: `${f.name} no es una imagen.`, variant: "destructive" as any })
+              continue
+            }
+            if (f.size > 5 * 1024 * 1024) {
+              toast({ title: "Archivo muy grande", description: `${f.name} supera 5MB.`, variant: "destructive" as any })
+              continue
+            }
             const form = new FormData()
             form.append("file", f)
             const res = await fetch("/api/upload", { method: "POST", body: form })
             if (!res.ok) throw new Error("Upload failed")
             const data = await res.json()
             if (data?.url) uploadedEditUrls.push(data.url)
+            completed += 1
+            setUploadProgress(Math.round((completed / total) * 100))
           }
         } catch (e) {
           console.error(e)
         } finally {
           setIsUploading(false)
+          setUploadProgress(0)
         }
       }
 
@@ -143,25 +160,40 @@ export function AdminPanel() {
         setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
       }
       setEditAllImageFiles([])
-      setEditingProduct(null)
+  setEditingProduct(null)
+  toast({ title: "Producto actualizado", description: "Imágenes actualizadas correctamente." })
   } else if (isAddingProduct && newProduct.name && newProduct.brand && newProduct.price) {
       // Upload all selected images (first becomes cover)
       let uploadedUrls: string[] = []
       if (newAllImageFiles.length > 0) {
         try {
           setIsUploading(true)
-          for (const f of newAllImageFiles.slice(0, 4)) {
+          const files = newAllImageFiles.slice(0, 4)
+          const total = files.length
+          let completed = 0
+          for (const f of files) {
+            if (!f.type.startsWith("image/")) {
+              toast({ title: "Archivo inválido", description: `${f.name} no es una imagen.`, variant: "destructive" as any })
+              continue
+            }
+            if (f.size > 5 * 1024 * 1024) {
+              toast({ title: "Archivo muy grande", description: `${f.name} supera 5MB.`, variant: "destructive" as any })
+              continue
+            }
             const form = new FormData()
             form.append("file", f)
             const res = await fetch("/api/upload", { method: "POST", body: form })
             if (!res.ok) throw new Error("Upload failed")
             const data = await res.json()
             if (data?.url) uploadedUrls.push(data.url)
+            completed += 1
+            setUploadProgress(Math.round((completed / total) * 100))
           }
         } catch (e) {
           console.error(e)
         } finally {
           setIsUploading(false)
+          setUploadProgress(0)
         }
       }
       if (uploadedUrls.length === 0) {
@@ -201,7 +233,8 @@ export function AdminPanel() {
   setNewImageFile(null)
   setNewExtraImageFiles([])
   setNewAllImageFiles([])
-      setIsAddingProduct(false)
+  setIsAddingProduct(false)
+  toast({ title: "Producto creado", description: "Se guardó el producto con sus imágenes." })
     }
   }
 
@@ -739,7 +772,7 @@ export function AdminPanel() {
                 </Button>
                 <Button onClick={handleSaveProduct} disabled={isUploading}>
                   <Save className="w-4 h-4 mr-2" />
-                  {isUploading ? "Subiendo imagen..." : "Guardar Producto"}
+                  {isUploading ? `Subiendo... ${uploadProgress}%` : "Guardar Producto"}
                 </Button>
               </div>
             </DialogContent>
@@ -1099,7 +1132,7 @@ export function AdminPanel() {
                 </Button>
                 <Button onClick={handleSaveProduct} disabled={isUploading}>
                   <Save className="w-4 h-4 mr-2" />
-                  {isUploading ? "Subiendo imagen..." : "Guardar Cambios"}
+                  {isUploading ? `Subiendo... ${uploadProgress}%` : "Guardar Cambios"}
                 </Button>
               </div>
             </DialogContent>

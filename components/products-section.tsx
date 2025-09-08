@@ -51,6 +51,10 @@ export function ProductsSection() {
   const [brandFilter, setBrandFilter] = useState("all")
   const [sortBy, setSortBy] = useState("name")
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const PAGE_SIZE = 6
+  const [categoryPage, setCategoryPage] = useState<Record<string, number>>({})
+  const getPage = (key: string) => categoryPage[key] ?? 1
+  const setPage = (key: string, page: number) => setCategoryPage((prev) => ({ ...prev, [key]: page }))
 
   useEffect(() => {
     // Preselect tab from hash #productos-<categoryId>
@@ -127,6 +131,12 @@ export function ProductsSection() {
       window.removeEventListener("focus", onFocus)
     }
   }, [activeCategory])
+
+  // Resetear página al cambiar de categoría o filtros/orden
+  useEffect(() => {
+    if (!activeCategory) return
+    setPage(activeCategory, 1)
+  }, [activeCategory, priceFilter, brandFilter, sortBy])
 
   const getFilteredProducts = (products: any[]) => {
     let filtered = [...products]
@@ -422,10 +432,19 @@ export function ProductsSection() {
               {getFilteredProducts(category.products).length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No hay productos disponibles en esta categoría</p>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-                  {getFilteredProducts(category.products).map((product, index) => (
+                <>
+                {(() => {
+                  const filtered = getFilteredProducts(category.products)
+                  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+                  const page = Math.min(getPage(key), totalPages)
+                  const start = (page - 1) * PAGE_SIZE
+                  const visible = filtered.slice(start, start + PAGE_SIZE)
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+                        {visible.map((product, index) => (
                   <Card
-                    key={index}
+                    key={product.id ?? index}
                     className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
                     onClick={() => router.push(`/productos/${product.id ?? index}`)}
                   >
@@ -481,9 +500,7 @@ export function ProductsSection() {
                         </div>
                         <span className="text-xs md:text-sm text-muted-foreground">({product.rating})</span>
                       </div>
-                      <CardDescription className="text-muted-foreground mb-4 hidden md:block flex-grow">
-                        {product.description}
-                      </CardDescription>
+                      {/* Descripción oculta en card; se muestra en la página de detalle */}
                       <div className="space-y-1 md:space-y-2 mt-auto">
                         <Button
                           variant="outline"
@@ -514,8 +531,33 @@ export function ProductsSection() {
                       </div>
                     </CardContent>
                   </Card>
-                  ))}
-                </div>
+                        ))}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 mt-6">
+                          <Button
+                            variant="outline"
+                            disabled={page <= 1}
+                            onClick={() => setPage(key, Math.max(1, page - 1))}
+                            className="h-9"
+                          >
+                            Anterior
+                          </Button>
+                          <span className="text-sm text-muted-foreground">Página {page} de {totalPages}</span>
+                          <Button
+                            variant="outline"
+                            disabled={page >= totalPages}
+                            onClick={() => setPage(key, Math.min(totalPages, page + 1))}
+                            className="h-9"
+                          >
+                            Siguiente
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+                </>
               )}
             </TabsContent>
           )})}
