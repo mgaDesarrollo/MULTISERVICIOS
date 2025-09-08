@@ -40,3 +40,14 @@ model Product {
   categoryId     Int
   createdAt      DateTime  @default(now())
 }
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  dni       String?  @unique
+  cuit      String?  @unique
+  email     String?
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+}

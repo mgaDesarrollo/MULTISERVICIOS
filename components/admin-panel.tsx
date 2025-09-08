@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, DollarSign, Building2, FileText, Info } from "lucide-react"
+import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, DollarSign, Building2, FileText, Info, MoreVertical, Phone as PhoneIcon, Mail, Download, Eye } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Product {
@@ -35,6 +36,28 @@ interface Category {
   icon?: string
 }
 
+interface Client {
+  id: number
+  name: string
+  dni?: string
+  cuit?: string
+  email?: string
+  phone?: string
+  notes?: string
+  createdAt?: string
+}
+
+type PaymentStatus = "pendiente" | "completado" | "fallido"
+interface Payment {
+  id: number
+  client?: string
+  amount: number
+  method?: string
+  status?: PaymentStatus
+  date?: string
+  notes?: string
+}
+
 const initialCategories: Category[] = []
 const sampleProducts: Product[] = []
 
@@ -47,6 +70,13 @@ export function AdminPanel() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isAddingProduct, setIsAddingProduct] = useState(false)
   const [isAddingCategory, setIsAddingCategory] = useState(false)
+  // Clients & Payments
+  const [clients, setClients] = useState<Client[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [editingClient, setEditingClient] = useState<Client | null>(null)
+  const [isAddingClient, setIsAddingClient] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
+  const [isAddingPayment, setIsAddingPayment] = useState(false)
 
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
@@ -70,6 +100,51 @@ export function AdminPanel() {
   // Temp inputs for features in add/edit dialogs
   const [newFeatureValue, setNewFeatureValue] = useState("")
   const [editFeatureValue, setEditFeatureValue] = useState("")
+
+  // Helpers: clipboard & exports for clients
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ title: "Copiado", description: `${label} copiado al portapapeles.` })
+    } catch {
+      // Fallback for older browsers
+      const el = document.createElement("textarea")
+      el.value = text
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand("copy")
+      document.body.removeChild(el)
+      toast({ title: "Copiado", description: `${label} copiado al portapapeles.` })
+    }
+  }
+
+  const exportClientJson = (c: Client) => {
+    const blob = new Blob([JSON.stringify(c, null, 2)], { type: "application/json;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `cliente-${c.id}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast({ title: "Exportado", description: "Cliente exportado a JSON." })
+  }
+
+  const exportClientCsv = (c: Client) => {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`
+    const headers = ["id", "name", "dni", "cuit", "email", "phone", "notes", "createdAt"].join(",")
+    const row = [c.id, c.name, c.dni || "", c.cuit || "", c.email || "", c.phone || "", (c.notes || "").replace(/\n/g, " "), c.createdAt || ""]
+      .map(esc)
+      .join(",")
+    const csv = `${headers}\n${row}`
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `cliente-${c.id}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast({ title: "Exportado", description: "Cliente exportado a CSV." })
+  }
 
   const reorder = <T,>(arr: T[], from: number, to: number): T[] => {
     const copy = [...arr]
@@ -344,14 +419,17 @@ export function AdminPanel() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [catsRes, prodRes] = await Promise.all([
+        const [catsRes, prodRes, clientsRes] = await Promise.all([
           fetch("/api/categories"),
           fetch("/api/products"),
+          fetch("/api/clients"),
         ])
         const cats = catsRes.ok ? await catsRes.json() : []
         const prods = prodRes.ok ? await prodRes.json() : []
+        const cls = clientsRes?.ok ? await clientsRes.json() : []
         setCategories(cats)
         setProducts(prods)
+        setClients(cls)
       } catch (e) {
         console.error(e)
       }
@@ -360,15 +438,25 @@ export function AdminPanel() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center gap-2 mb-8">
-        <Settings className="w-6 h-6" />
-        <h1 className="text-3xl font-bold">Panel de Administración</h1>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-2">
+          <Settings className="w-6 h-6" />
+          <h1 className="text-3xl font-bold">Panel de Administración</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => { setActiveTab("clients"); setIsAddingClient(true) }}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Cliente
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="products">Gestión de Productos</TabsTrigger>
           <TabsTrigger value="categories">Gestión de Categorías</TabsTrigger>
+          <TabsTrigger value="clients">Gestión de Clientes</TabsTrigger>
+          <TabsTrigger value="payments">Gestión de Pagos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="space-y-6">
@@ -1269,6 +1357,364 @@ export function AdminPanel() {
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+  </TabsContent>
+  {/* Clients Tab */}
+  <TabsContent value="clients" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Clientes</h2>
+            <Button onClick={() => setIsAddingClient(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Agregar Cliente
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Lista de Clientes</CardTitle>
+              <CardDescription>Gestiona tus clientes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>DNI</TableHead>
+                    <TableHead>CUIT</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Teléfono</TableHead>
+                    <TableHead>Creado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {clients.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell>{c.dni || "—"}</TableCell>
+                      <TableCell>{c.cuit || "—"}</TableCell>
+                      <TableCell>{c.email || "—"}</TableCell>
+                      <TableCell>{c.phone || "—"}</TableCell>
+                      <TableCell>{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "—"}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => setEditingClient(c)}>
+                              <Edit className="w-4 h-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              const details = `Cliente: ${c.name}\nDNI: ${c.dni || '—'}\nCUIT: ${c.cuit || '—'}\nEmail: ${c.email || '—'}\nTeléfono: ${c.phone || '—'}\nNotas: ${c.notes || '—'}`
+                              toast({ title: "Vista rápida", description: details })
+                            }}>
+                              <Eye className="w-4 h-4 mr-2" /> Vista rápida
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem disabled={!c.email} onClick={() => c.email && copyToClipboard(c.email, "Email")}>
+                              <Mail className="w-4 h-4 mr-2" /> Copiar email
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={!c.phone} onClick={() => c.phone && copyToClipboard(c.phone, "Teléfono")}>
+                              <PhoneIcon className="w-4 h-4 mr-2" /> Copiar teléfono
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => exportClientJson(c)}>
+                              <Download className="w-4 h-4 mr-2" /> Exportar JSON
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => exportClientCsv(c)}>
+                              <Download className="w-4 h-4 mr-2" /> Exportar CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={async () => {
+                              if (!confirm(`¿Eliminar cliente "${c.name}"? Esta acción no se puede deshacer.`)) return
+                              const res = await fetch(`/api/clients/${c.id}`, { method: 'DELETE' })
+                              if (res.ok) setClients((prev) => prev.filter((x) => x.id !== c.id))
+                              else toast({ title: 'Error', description: 'No se pudo eliminar el cliente', variant: 'destructive' as any })
+                            }}>
+                              <Trash2 className="w-4 h-4 mr-2" /> Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {clients.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">Sin clientes todavía</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Add Client Dialog */}
+          <Dialog open={isAddingClient} onOpenChange={setIsAddingClient}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Agregar Cliente</DialogTitle>
+                <DialogDescription>Registra un nuevo cliente</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="client-name">Nombre</Label>
+                  <Input id="client-name" onChange={(e) => setEditingClient({ id: 0, name: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="client-dni">DNI</Label>
+                    <Input id="client-dni" onChange={(e) => setEditingClient((prev) => ({ ...(prev || { id: 0, name: "" }), dni: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="client-cuit">CUIT</Label>
+                    <Input id="client-cuit" onChange={(e) => setEditingClient((prev) => ({ ...(prev || { id: 0, name: "" }), cuit: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="client-email">Email</Label>
+                    <Input id="client-email" onChange={(e) => setEditingClient((prev) => ({ ...(prev || { id: 0, name: "" }), email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label htmlFor="client-phone">Teléfono</Label>
+                    <Input id="client-phone" onChange={(e) => setEditingClient((prev) => ({ ...(prev || { id: 0, name: "" }), phone: e.target.value }))} />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="client-notes">Notas</Label>
+                  <Textarea id="client-notes" rows={3} onChange={(e) => setEditingClient((prev) => ({ ...(prev || { id: 0, name: "" }), notes: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-6">
+                <Button
+                  onClick={async () => {
+                    if (!editingClient?.name?.trim()) return
+                    const body = {
+                      name: editingClient.name.trim(),
+                      dni: editingClient.dni,
+                      cuit: editingClient.cuit,
+                      email: editingClient.email,
+                      phone: editingClient.phone,
+                      notes: editingClient.notes,
+                    }
+                    const res = await fetch("/api/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+                    if (res.ok) {
+                      const created = await res.json()
+                      setClients((prev) => [created, ...prev])
+                      setEditingClient(null)
+                      setIsAddingClient(false)
+                    }
+                  }}
+                >
+                  <Save className="w-4 h-4 mr-2" /> Guardar Cliente
+                </Button>
+                <Button variant="outline" onClick={() => { setEditingClient(null); setIsAddingClient(false) }}>
+                  <X className="w-4 h-4 mr-2" /> Cancelar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Client Dialog */}
+          <Dialog open={!!editingClient && !isAddingClient} onOpenChange={() => setEditingClient(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar Cliente</DialogTitle>
+                <DialogDescription>Modifica la información del cliente</DialogDescription>
+              </DialogHeader>
+              {editingClient && (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="edit-client-name">Nombre</Label>
+                    <Input id="edit-client-name" value={editingClient.name} onChange={(e) => setEditingClient({ ...editingClient, name: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="edit-client-dni">DNI</Label>
+                      <Input id="edit-client-dni" value={editingClient.dni || ""} onChange={(e) => setEditingClient({ ...editingClient, dni: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-client-cuit">CUIT</Label>
+                      <Input id="edit-client-cuit" value={editingClient.cuit || ""} onChange={(e) => setEditingClient({ ...editingClient, cuit: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="edit-client-email">Email</Label>
+                      <Input id="edit-client-email" value={editingClient.email || ""} onChange={(e) => setEditingClient({ ...editingClient, email: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-client-phone">Teléfono</Label>
+                      <Input id="edit-client-phone" value={editingClient.phone || ""} onChange={(e) => setEditingClient({ ...editingClient, phone: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-client-notes">Notas</Label>
+                    <Textarea id="edit-client-notes" rows={3} value={editingClient.notes || ""} onChange={(e) => setEditingClient({ ...editingClient, notes: e.target.value })} />
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2 mt-6">
+                <Button onClick={async () => {
+                  if (!editingClient) return
+                  const body = { name: editingClient.name, dni: editingClient.dni, cuit: editingClient.cuit, email: editingClient.email, phone: editingClient.phone, notes: editingClient.notes }
+                  const res = await fetch(`/api/clients/${editingClient.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+                  if (res.ok) {
+                    const updated = await res.json()
+                    setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+                    setEditingClient(null)
+                  }
+                }}>
+                  <Save className="w-4 h-4 mr-2" /> Guardar Cambios
+                </Button>
+                <Button variant="outline" onClick={() => setEditingClient(null)}>
+                  <X className="w-4 h-4 mr-2" /> Cancelar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+  </TabsContent>
+
+  {/* Payments Tab */}
+  <TabsContent value="payments" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Pagos</h2>
+            <Button onClick={() => { setEditingPayment({ id: 0, amount: 0, status: "pendiente", date: new Date().toISOString() }); setIsAddingPayment(true) }}>
+              <Plus className="w-4 h-4 mr-2" /> Registrar Pago
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Historial de Pagos</CardTitle>
+              <CardDescription>Controla y gestiona pagos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Monto</TableHead>
+                    <TableHead>Método</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payments.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell>{p.client || "—"}</TableCell>
+                      <TableCell>${p.amount?.toFixed ? p.amount.toFixed(2) : p.amount}</TableCell>
+                      <TableCell>{p.method || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={p.status === "completado" ? "default" : p.status === "pendiente" ? "secondary" : "destructive"}>{p.status}</Badge>
+                      </TableCell>
+                      <TableCell>{p.date ? new Date(p.date).toLocaleDateString() : "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => { setEditingPayment(p); setIsAddingPayment(false) }}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => setPayments((prev) => prev.filter((x) => x.id !== p.id))}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {payments.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">Sin pagos registrados</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Add/Edit Payment Dialog */}
+          <Dialog open={isAddingPayment || (!!editingPayment && !isAddingPayment)} onOpenChange={() => { setEditingPayment(null); setIsAddingPayment(false) }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{isAddingPayment ? "Registrar Pago" : "Editar Pago"}</DialogTitle>
+                <DialogDescription>Completa la información del pago</DialogDescription>
+              </DialogHeader>
+              {editingPayment && (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="pay-client">Cliente</Label>
+                    <Input id="pay-client" value={editingPayment.client || ""} onChange={(e) => setEditingPayment({ ...(editingPayment as Payment), client: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="pay-amount">Monto</Label>
+                      <Input id="pay-amount" type="number" min="0" step="0.01" value={String(editingPayment.amount ?? 0)} onChange={(e) => setEditingPayment({ ...(editingPayment as Payment), amount: Number.parseFloat(e.target.value || "0") })} />
+                    </div>
+                    <div>
+                      <Label>Método</Label>
+                      <Select value={editingPayment.method || ""} onValueChange={(v) => setEditingPayment({ ...(editingPayment as Payment), method: v })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="efectivo">Efectivo</SelectItem>
+                          <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                          <SelectItem value="transferencia">Transferencia</SelectItem>
+                          <SelectItem value="otros">Otros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Estado</Label>
+                      <Select value={editingPayment.status || "pendiente"} onValueChange={(v) => setEditingPayment({ ...(editingPayment as Payment), status: v as PaymentStatus })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendiente">Pendiente</SelectItem>
+                          <SelectItem value="completado">Completado</SelectItem>
+                          <SelectItem value="fallido">Fallido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="pay-date">Fecha</Label>
+                      <Input id="pay-date" type="date" value={editingPayment.date ? new Date(editingPayment.date).toISOString().slice(0,10) : ""} onChange={(e) => setEditingPayment({ ...(editingPayment as Payment), date: new Date(e.target.value).toISOString() })} />
+                    </div>
+                    <div>
+                      <Label htmlFor="pay-notes">Notas</Label>
+                      <Input id="pay-notes" value={editingPayment.notes || ""} onChange={(e) => setEditingPayment({ ...(editingPayment as Payment), notes: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2 mt-6">
+                <Button
+                  onClick={() => {
+                    if (!editingPayment) return
+                    if (isAddingPayment) {
+                      const newPayment: Payment = { ...(editingPayment as Payment), id: Date.now() }
+                      setPayments((prev) => [newPayment, ...prev])
+                      setIsAddingPayment(false)
+                      setEditingPayment(null)
+                    } else {
+                      setPayments((prev) => prev.map((x) => (x.id === editingPayment.id ? (editingPayment as Payment) : x)))
+                      setEditingPayment(null)
+                    }
+                  }}
+                >
+                  <Save className="w-4 h-4 mr-2" /> Guardar
+                </Button>
+                <Button variant="outline" onClick={() => { setEditingPayment(null); setIsAddingPayment(false) }}>
+                  <X className="w-4 h-4 mr-2" /> Cancelar
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </TabsContent>
