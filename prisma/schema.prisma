@@ -39,6 +39,7 @@ model Product {
   category       Category  @relation(fields: [categoryId], references: [id])
   categoryId     Int
   createdAt      DateTime  @default(now())
+  saleItems      SaleItem[]
 }
 
 model Client {
@@ -50,4 +51,38 @@ model Client {
   phone     String?
   notes     String?
   createdAt DateTime @default(now())
+  sales     Sale[]
+}
+
+model FinancingMethod {
+  id           Int       @id @default(autoincrement())
+  name         String
+  description  String?
+  interestRate Float     @default(0) // 0.2 = 20%
+  installments Int       @default(1)
+  createdAt    DateTime  @default(now())
+  sales        Sale[]
+}
+
+model Sale {
+  id                  Int               @id @default(autoincrement())
+  client              Client            @relation(fields: [clientId], references: [id])
+  clientId            Int
+  financingMethod     FinancingMethod   @relation(fields: [financingMethodId], references: [id])
+  financingMethodId   Int
+  subtotal            Decimal           @db.Decimal(10,2)
+  interest            Decimal           @db.Decimal(10,2)
+  total               Decimal           @db.Decimal(10,2)
+  createdAt           DateTime          @default(now())
+  items               SaleItem[]
+}
+
+model SaleItem {
+  id         Int      @id @default(autoincrement())
+  sale       Sale     @relation(fields: [saleId], references: [id])
+  saleId     Int
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int
+  quantity   Int      @default(1)
+  unitPrice  Decimal  @db.Decimal(10,2)
 }

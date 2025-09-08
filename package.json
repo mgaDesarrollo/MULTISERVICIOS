@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
   "prisma:seed": "tsx prisma/seed.ts",
-  "prisma:seed:products": "tsx prisma/seed-products.ts"
+  "prisma:seed:products": "tsx prisma/seed-products.ts",
+  "prisma:seed:clients": "tsx prisma/seed-clients.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

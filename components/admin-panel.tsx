@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, DollarSign, Building2, FileText, Info, MoreVertical, Phone as PhoneIcon, Mail, Download, Eye } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { BrandLogo } from "@/components/brand-logo"
 
 interface Product {
   id: number
@@ -144,6 +145,26 @@ export function AdminPanel() {
     a.click()
     URL.revokeObjectURL(url)
     toast({ title: "Exportado", description: "Cliente exportado a CSV." })
+  }
+
+  // Generic API response handler: redirects on 401 and shows error toasts
+  const handleApiResponse = async (res: Response, opts?: { success?: string }) => {
+    if (res.status === 401) {
+      toast({ title: "Sesión expirada", description: "Vuelve a iniciar sesión.", variant: "destructive" as any })
+      if (typeof window !== "undefined") window.location.href = "/login"
+      return null
+    }
+    if (!res.ok) {
+      try {
+        const data = await res.json()
+        toast({ title: "Error", description: String(data?.error || "Operación fallida"), variant: "destructive" as any })
+      } catch {
+        toast({ title: "Error", description: "Operación fallida", variant: "destructive" as any })
+      }
+      return null
+    }
+    if (opts?.success) toast({ title: opts.success })
+    return res
   }
 
   const reorder = <T,>(arr: T[], from: number, to: number): T[] => {
@@ -424,14 +445,18 @@ export function AdminPanel() {
           fetch("/api/products"),
           fetch("/api/clients"),
         ])
+        if (!catsRes.ok) await handleApiResponse(catsRes)
+        if (!prodRes.ok) await handleApiResponse(prodRes)
+        if (!clientsRes.ok) await handleApiResponse(clientsRes)
         const cats = catsRes.ok ? await catsRes.json() : []
         const prods = prodRes.ok ? await prodRes.json() : []
-        const cls = clientsRes?.ok ? await clientsRes.json() : []
+        const cls = clientsRes.ok ? await clientsRes.json() : []
         setCategories(cats)
         setProducts(prods)
         setClients(cls)
       } catch (e) {
         console.error(e)
+        toast({ title: "Error", description: "No se pudieron cargar los datos", variant: "destructive" as any })
       }
     })()
   }, [])
@@ -439,9 +464,12 @@ export function AdminPanel() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-2">
-          <Settings className="w-6 h-6" />
-          <h1 className="text-3xl font-bold">Panel de Administración</h1>
+        <div className="flex items-center gap-4">
+          <BrandLogo onClick={() => setActiveTab("products")} />
+          <div className="flex items-center gap-2">
+            <Settings className="w-6 h-6" />
+            <h1 className="text-3xl font-bold">Panel de Administración</h1>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => { setActiveTab("clients"); setIsAddingClient(true) }}>
@@ -1431,8 +1459,8 @@ export function AdminPanel() {
                             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={async () => {
                               if (!confirm(`¿Eliminar cliente "${c.name}"? Esta acción no se puede deshacer.`)) return
                               const res = await fetch(`/api/clients/${c.id}`, { method: 'DELETE' })
-                              if (res.ok) setClients((prev) => prev.filter((x) => x.id !== c.id))
-                              else toast({ title: 'Error', description: 'No se pudo eliminar el cliente', variant: 'destructive' as any })
+                              const ok = await handleApiResponse(res, { success: 'Cliente eliminado' })
+                              if (ok) setClients((prev) => prev.filter((x) => x.id !== c.id))
                             }}>
                               <Trash2 className="w-4 h-4 mr-2" /> Eliminar
                             </DropdownMenuItem>
@@ -1501,8 +1529,9 @@ export function AdminPanel() {
                       notes: editingClient.notes,
                     }
                     const res = await fetch("/api/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-                    if (res.ok) {
-                      const created = await res.json()
+                    const ok = await handleApiResponse(res, { success: "Cliente creado" })
+                    if (ok) {
+                      const created = await res!.json()
                       setClients((prev) => [created, ...prev])
                       setEditingClient(null)
                       setIsAddingClient(false)
@@ -1562,8 +1591,9 @@ export function AdminPanel() {
                   if (!editingClient) return
                   const body = { name: editingClient.name, dni: editingClient.dni, cuit: editingClient.cuit, email: editingClient.email, phone: editingClient.phone, notes: editingClient.notes }
                   const res = await fetch(`/api/clients/${editingClient.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-                  if (res.ok) {
-                    const updated = await res.json()
+                  const ok = await handleApiResponse(res, { success: "Cliente actualizado" })
+                  if (ok) {
+                    const updated = await res!.json()
                     setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
                     setEditingClient(null)
                   }
