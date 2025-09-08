@@ -3,23 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { DollarSign, TrendingUp, CreditCard, Building2 } from "lucide-react"
+import { CreditCard, Building2 } from "lucide-react"
 
 const loanTypes = [
-  {
-    icon: DollarSign,
-    title: "Préstamos para Capital de Trabajo",
-    description: "Financia tu operación diaria, inventario y gastos corrientes con tasas preferenciales.",
-    benefits: ["Hasta $500,000", "Plazos flexibles", "Sin garantías hipotecarias"],
-    color: "bg-blue-500",
-  },
-  {
-    icon: TrendingUp,
-    title: "Créditos para Expansión",
-    description: "Haz crecer tu negocio con financiamiento para nuevas sucursales o mercados.",
-    benefits: ["Hasta $1,000,000", "Períodos de gracia", "Asesoría especializada"],
-    color: "bg-green-500",
-  },
   {
     icon: CreditCard,
     title: "Líneas de Crédito",
