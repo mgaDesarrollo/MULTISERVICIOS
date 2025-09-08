@@ -8,8 +8,12 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const q = (searchParams.get("q") || "").trim()
-    const take = Math.min(Number(searchParams.get("limit") || 0) || 0, 100)
-    const skip = Math.max(Number(searchParams.get("offset") || 0) || 0, 0)
+    const limitParam = searchParams.get("limit")
+    const offsetParam = searchParams.get("offset")
+    const takeRaw = Number.isFinite(Number(limitParam)) ? Number(limitParam) : 0
+    const skipRaw = Number.isFinite(Number(offsetParam)) ? Number(offsetParam) : 0
+    const take = Math.min(Math.max(takeRaw, 0), 100)
+    const skip = Math.max(skipRaw, 0)
 
     const where = q
       ? {
@@ -23,15 +27,16 @@ export async function GET(request: Request) {
         }
       : undefined
 
-    const res = await prisma.client.findMany({
+    const clients = await prisma.client.findMany({
       where,
       orderBy: { id: "desc" },
       ...(take ? { take } : {}),
       ...(skip ? { skip } : {}),
     })
-    return NextResponse.json(res)
-  } catch (error: any) {
-    return NextResponse.json({ error: String(error?.message || error) }, { status: 500 })
+    return NextResponse.json(clients)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -57,11 +62,12 @@ export async function POST(request: Request) {
   try {
     const created = await prisma.client.create({ data: { name, dni, cuit, email, phone, notes } })
     return NextResponse.json(created)
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const fields = (error.meta?.target as string[]) || []
       return NextResponse.json({ error: `Duplicado en campos: ${fields.join(", ")}` }, { status: 409 })
     }
-    return NextResponse.json({ error: String(error?.message || error) }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

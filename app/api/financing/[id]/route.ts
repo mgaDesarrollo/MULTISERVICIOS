@@ -3,12 +3,11 @@ import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
-export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const cookieStore = await cookies()
   const isAdmin = Boolean(cookieStore.get("admin_session")?.value)
   if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id: idStr } = await params
-  const id = Number(idStr)
+  const id = Number(params.id)
   const Schema = z.object({
     name: z.string().trim().min(1),
     description: z.string().optional().or(z.literal("")),
@@ -26,12 +25,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
   const cookieStore = await cookies()
   const isAdmin = Boolean(cookieStore.get("admin_session")?.value)
   if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id: idStr } = await params
-  const id = Number(idStr)
+  const id = Number(params.id)
   try {
     await prisma.financingMethod.delete({ where: { id } })
     return NextResponse.json({ ok: true })

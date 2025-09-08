@@ -6,29 +6,30 @@ import { Prisma } from "@prisma/client"
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: idStr } = await params
-    const id = Number(idStr)
+    const id = Number(params.id)
+    if (!Number.isFinite(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 })
     const client = await prisma.client.findUnique({ where: { id } })
     if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(client)
-  } catch (error: any) {
-    return NextResponse.json({ error: String(error?.message || error) }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const cookieStore = await cookies()
     const isAdmin = Boolean(cookieStore.get("admin_session")?.value)
     if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const { id: idStr } = await params
-    const id = Number(idStr)
+    const id = Number(params.id)
+    if (!Number.isFinite(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 })
     const Schema = z.object({
       name: z.string().trim().min(1, "El nombre es obligatorio"),
       dni: z.string().trim().optional().or(z.literal("")) .transform((v) => (v ? v : undefined)),
@@ -45,28 +46,30 @@ export async function PUT(
     const { name, dni, cuit, email, phone, notes } = parsed.data
     const updated = await prisma.client.update({ where: { id }, data: { name, dni, cuit, email, phone, notes } })
     return NextResponse.json(updated)
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const fields = (error.meta?.target as string[]) || []
       return NextResponse.json({ error: `Duplicado en campos: ${fields.join(", ")}` }, { status: 409 })
     }
-    return NextResponse.json({ error: String(error?.message || error) }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const cookieStore = await cookies()
     const isAdmin = Boolean(cookieStore.get("admin_session")?.value)
     if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const { id: idStr } = await params
-    const id = Number(idStr)
+    const id = Number(params.id)
+    if (!Number.isFinite(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 })
     await prisma.client.delete({ where: { id } })
     return NextResponse.json({ ok: true })
-  } catch (error: any) {
-    return NextResponse.json({ error: String(error?.message || error) }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

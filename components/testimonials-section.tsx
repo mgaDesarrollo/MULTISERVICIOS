@@ -110,7 +110,7 @@ export function TestimonialsSection() {
 
                 {/* Testimonial Text */}
                 <blockquote className="text-xl md:text-2xl text-foreground mb-8 leading-relaxed font-medium">
-                  "{currentTestimonial.testimonial}"
+                  &quot;{currentTestimonial.testimonial}&quot;
                 </blockquote>
 
                 {/* Rating */}

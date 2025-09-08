@@ -9,9 +9,10 @@
     "start": "next start",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
-  "prisma:seed": "tsx prisma/seed.ts",
-  "prisma:seed:products": "tsx prisma/seed-products.ts",
-  "prisma:seed:clients": "tsx prisma/seed-clients.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed:products": "tsx prisma/seed-products.ts",
+  "prisma:seed:clients": "tsx prisma/seed-clients.ts",
+  "prisma:seed:financing-sales": "tsx prisma/seed-financing-and-sales.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -74,6 +75,8 @@
     "@types/pg": "^8.15.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "^15.5.2",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tsx": "^4.20.5",

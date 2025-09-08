@@ -48,6 +48,29 @@ interface Client {
   createdAt?: string
 }
 
+interface FinancingMethod {
+  id: number
+  name: string
+  description?: string
+  interestRate: number
+  installments: number
+  createdAt?: string
+}
+
+interface SaleItemInput { productId: number; quantity: number; unitPrice: number }
+interface Sale {
+  id: number
+  clientId: number
+  financingMethodId: number
+  subtotal: number | string
+  interest: number | string
+  total: number | string
+  createdAt?: string
+  items: Array<{ id: number; productId: number; quantity: number; unitPrice: number | string; product?: Product }>
+  client?: Client
+  financingMethod?: FinancingMethod
+}
+
 type PaymentStatus = "pendiente" | "completado" | "fallido"
 interface Payment {
   id: number
@@ -78,6 +101,13 @@ export function AdminPanel() {
   const [isAddingClient, setIsAddingClient] = useState(false)
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
   const [isAddingPayment, setIsAddingPayment] = useState(false)
+  // Financing & Sales
+  const [financingMethods, setFinancingMethods] = useState<FinancingMethod[]>([])
+  const [editingMethod, setEditingMethod] = useState<FinancingMethod | null>(null)
+  const [isAddingMethod, setIsAddingMethod] = useState(false)
+  const [sales, setSales] = useState<Sale[]>([])
+  const [isAddingSale, setIsAddingSale] = useState(false)
+  const [saleDraft, setSaleDraft] = useState<{ clientId?: number; financingMethodId?: number; items: SaleItemInput[] }>({ items: [] })
 
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
@@ -440,20 +470,28 @@ export function AdminPanel() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [catsRes, prodRes, clientsRes] = await Promise.all([
+        const [catsRes, prodRes, clientsRes, methodsRes, salesRes] = await Promise.all([
           fetch("/api/categories"),
           fetch("/api/products"),
           fetch("/api/clients"),
+          fetch("/api/financing"),
+          fetch("/api/sales"),
         ])
         if (!catsRes.ok) await handleApiResponse(catsRes)
         if (!prodRes.ok) await handleApiResponse(prodRes)
         if (!clientsRes.ok) await handleApiResponse(clientsRes)
+        if (!methodsRes.ok) await handleApiResponse(methodsRes)
+        if (!salesRes.ok) await handleApiResponse(salesRes)
         const cats = catsRes.ok ? await catsRes.json() : []
         const prods = prodRes.ok ? await prodRes.json() : []
         const cls = clientsRes.ok ? await clientsRes.json() : []
+        const fms = methodsRes.ok ? await methodsRes.json() : []
+        const sv = salesRes.ok ? await salesRes.json() : []
         setCategories(cats)
         setProducts(prods)
         setClients(cls)
+        setFinancingMethods(fms)
+        setSales(sv)
       } catch (e) {
         console.error(e)
         toast({ title: "Error", description: "No se pudieron cargar los datos", variant: "destructive" as any })
@@ -471,20 +509,16 @@ export function AdminPanel() {
             <h1 className="text-3xl font-bold">Panel de Administración</h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => { setActiveTab("clients"); setIsAddingClient(true) }}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Cliente
-          </Button>
-        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="products">Gestión de Productos</TabsTrigger>
           <TabsTrigger value="categories">Gestión de Categorías</TabsTrigger>
           <TabsTrigger value="clients">Gestión de Clientes</TabsTrigger>
           <TabsTrigger value="payments">Gestión de Pagos</TabsTrigger>
+          <TabsTrigger value="financing">Métodos de Financiamiento</TabsTrigger>
+          <TabsTrigger value="sales">Gestión de Ventas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="space-y-6">
@@ -1255,6 +1289,161 @@ export function AdminPanel() {
           </Dialog>
         </TabsContent>
 
+      {/* Financing Methods Tab */}
+      <TabsContent value="financing" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-semibold">Métodos de Financiamiento</h2>
+                <Button onClick={() => setIsAddingMethod(true)}>
+                  <Plus className="w-4 h-4 mr-2" /> Nuevo método
+                </Button>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Lista</CardTitle>
+                  <CardDescription>Define planes en cuotas, intereses y condiciones</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Interés</TableHead>
+                        <TableHead>Cuotas</TableHead>
+                        <TableHead>Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {financingMethods.map((m) => (
+                        <TableRow key={m.id}>
+                          <TableCell className="font-medium">{m.name}</TableCell>
+                          <TableCell className="max-w-[320px] truncate">{m.description || "—"}</TableCell>
+                          <TableCell>{(m.interestRate * 100).toFixed(2)}%</TableCell>
+                          <TableCell>{m.installments}x</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" onClick={() => setEditingMethod(m)}>
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={async () => {
+                                if (!confirm(`¿Eliminar método "${m.name}"?`)) return
+                                const res = await fetch(`/api/financing/${m.id}`, { method: 'DELETE' })
+                                const ok = await handleApiResponse(res, { success: 'Método eliminado' })
+                                if (ok) setFinancingMethods((prev) => prev.filter((x) => x.id !== m.id))
+                              }}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {financingMethods.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-muted-foreground">Sin métodos aún</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Add Method Dialog */}
+              <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Nuevo método</DialogTitle>
+                    <DialogDescription>Define nombre, interés y cuotas</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="md:col-span-2">
+                      <Label>Nombre</Label>
+                      <Input onChange={(e) => setEditingMethod({ id: 0, name: e.target.value, interestRate: 0, installments: 1 })} />
+                    </div>
+                    <div>
+                      <Label>Interés (%)</Label>
+                      <Input type="number" step="0.01" onChange={(e) => setEditingMethod((prev) => ({ ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), interestRate: Number(e.target.value) / 100 }))} />
+                    </div>
+                    <div>
+                      <Label>Cuotas</Label>
+                      <Input type="number" min="1" onChange={(e) => setEditingMethod((prev) => ({ ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), installments: Number(e.target.value) }))} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label>Descripción</Label>
+                      <Textarea rows={3} onChange={(e) => setEditingMethod((prev) => ({ ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), description: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-6">
+                    <Button onClick={async () => {
+                      if (!editingMethod?.name?.trim()) return
+                      const body = { name: editingMethod.name.trim(), description: editingMethod.description, interestRate: editingMethod.interestRate || 0, installments: editingMethod.installments || 1 }
+                      const res = await fetch('/api/financing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+                      const ok = await handleApiResponse(res, { success: 'Método creado' })
+                      if (ok) {
+                        const created = await res!.json()
+                        setFinancingMethods((prev) => [created, ...prev])
+                        setEditingMethod(null)
+                        setIsAddingMethod(false)
+                      }
+                    }}>
+                      <Save className="w-4 h-4 mr-2" /> Guardar
+                    </Button>
+                    <Button variant="outline" onClick={() => { setEditingMethod(null); setIsAddingMethod(false) }}>
+                      <X className="w-4 h-4 mr-2" /> Cancelar
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Edit Method Dialog */}
+              <Dialog open={!!editingMethod && !isAddingMethod} onOpenChange={() => setEditingMethod(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Editar método</DialogTitle>
+                    <DialogDescription>Actualiza los datos del plan</DialogDescription>
+                  </DialogHeader>
+                  {editingMethod && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="md:col-span-2">
+                        <Label>Nombre</Label>
+                        <Input value={editingMethod.name} onChange={(e) => setEditingMethod({ ...editingMethod, name: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label>Interés (%)</Label>
+                        <Input type="number" step="0.01" value={String((editingMethod.interestRate ?? 0) * 100)} onChange={(e) => setEditingMethod({ ...editingMethod, interestRate: Number(e.target.value) / 100 })} />
+                      </div>
+                      <div>
+                        <Label>Cuotas</Label>
+                        <Input type="number" min="1" value={String(editingMethod.installments ?? 1)} onChange={(e) => setEditingMethod({ ...editingMethod, installments: Number(e.target.value) })} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Descripción</Label>
+                        <Textarea rows={3} value={editingMethod.description || ''} onChange={(e) => setEditingMethod({ ...editingMethod, description: e.target.value })} />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-6">
+                    <Button onClick={async () => {
+                      if (!editingMethod) return
+                      const body = { name: editingMethod.name, description: editingMethod.description, interestRate: editingMethod.interestRate, installments: editingMethod.installments }
+                      const res = await fetch(`/api/financing/${editingMethod.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+                      const ok = await handleApiResponse(res, { success: 'Método actualizado' })
+                      if (ok) {
+                        const updated = await res!.json()
+                        setFinancingMethods((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+                        setEditingMethod(null)
+                      }
+                    }}>
+                      <Save className="w-4 h-4 mr-2" /> Guardar Cambios
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditingMethod(null)}>
+                      <X className="w-4 h-4 mr-2" /> Cancelar
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+      </TabsContent>
+
         <TabsContent value="categories" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-semibold">Categorías</h2>
@@ -1748,6 +1937,164 @@ export function AdminPanel() {
             </DialogContent>
           </Dialog>
         </TabsContent>
+
+  {/* Sales Tab */}
+  <TabsContent value="sales" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Gestión de Ventas</h2>
+            <Button onClick={() => { setIsAddingSale(true); setSaleDraft({ items: [] }) }}>
+              <Plus className="w-4 h-4 mr-2" /> Nueva venta
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Listado de Ventas</CardTitle>
+              <CardDescription>Incluye cliente, método y totales</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Método</TableHead>
+                    <TableHead>Subtotal</TableHead>
+                    <TableHead>Interés</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sales.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-mono">{s.id}</TableCell>
+                      <TableCell>{s.client?.name || s.clientId}</TableCell>
+                      <TableCell>{s.financingMethod?.name || s.financingMethodId}</TableCell>
+                      <TableCell>${typeof s.subtotal === 'number' ? s.subtotal.toFixed(2) : s.subtotal}</TableCell>
+                      <TableCell>${typeof s.interest === 'number' ? s.interest.toFixed(2) : s.interest}</TableCell>
+                      <TableCell className="font-semibold">${typeof s.total === 'number' ? s.total.toFixed(2) : s.total}</TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="destructive" onClick={async () => {
+                          if (!confirm(`¿Eliminar venta #${s.id}?`)) return
+                          const res = await fetch(`/api/sales/${s.id}`, { method: 'DELETE' })
+                          const ok = await handleApiResponse(res, { success: 'Venta eliminada' })
+                          if (ok) setSales((prev) => prev.filter((x) => x.id !== s.id))
+                        }}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {sales.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">Sin ventas</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Add Sale Dialog */}
+          <Dialog open={isAddingSale} onOpenChange={setIsAddingSale}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nueva venta</DialogTitle>
+                <DialogDescription>Selecciona cliente, método y productos</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <Label>Cliente</Label>
+                    <Select value={saleDraft.clientId ? String(saleDraft.clientId) : ''} onValueChange={(v) => setSaleDraft((prev) => ({ ...prev, clientId: Number(v) }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Método de financiamiento</Label>
+                    <Select value={saleDraft.financingMethodId ? String(saleDraft.financingMethodId) : ''} onValueChange={(v) => setSaleDraft((prev) => ({ ...prev, financingMethodId: Number(v) }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {financingMethods.map((m) => (
+                          <SelectItem key={m.id} value={String(m.id)}>{m.name} ({m.installments}x, {(m.interestRate*100).toFixed(0)}%)</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Productos</Label>
+                  <div className="space-y-2">
+                    {saleDraft.items.map((it, idx) => (
+                      <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
+                        <Select value={String(it.productId)} onValueChange={(v) => setSaleDraft((prev) => ({ ...prev, items: prev.items.map((x, i) => i === idx ? { ...x, productId: Number(v), unitPrice: Number(products.find(p=>p.id===Number(v))?.price || 0) } : x) }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Producto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((p) => (
+                              <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input type="number" min="1" value={String(it.quantity)} onChange={(e) => setSaleDraft((prev) => ({ ...prev, items: prev.items.map((x, i) => i === idx ? { ...x, quantity: Number(e.target.value) } : x) }))} />
+                        <Input type="number" min="0" step="0.01" value={String(it.unitPrice)} onChange={(e) => setSaleDraft((prev) => ({ ...prev, items: prev.items.map((x, i) => i === idx ? { ...x, unitPrice: Number(e.target.value) } : x) }))} />
+                        <div className="text-sm text-muted-foreground">${(it.quantity * it.unitPrice).toFixed(2)}</div>
+                        <Button variant="destructive" size="sm" onClick={() => setSaleDraft((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}><Trash2 className="w-4 h-4" /></Button>
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" onClick={() => setSaleDraft((prev) => ({ ...prev, items: [...prev.items, { productId: products[0]?.id ?? 0, quantity: 1, unitPrice: Number(products[0]?.price || 0) }] }))}>
+                      <Plus className="w-4 h-4 mr-2" /> Agregar producto
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-4">
+                  {(() => {
+                    const subtotal = saleDraft.items.reduce((a, b) => a + b.unitPrice * b.quantity, 0)
+                    const method = financingMethods.find((m) => m.id === saleDraft.financingMethodId)
+                    const interest = subtotal * (method?.interestRate || 0)
+                    const total = subtotal + interest
+                    return (
+                      <div className="text-right">
+                        <div className="text-sm text-muted-foreground">Subtotal: ${subtotal.toFixed(2)}</div>
+                        <div className="text-sm text-muted-foreground">Interés: ${interest.toFixed(2)}</div>
+                        <div className="text-lg font-semibold">Total: ${total.toFixed(2)}</div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+              <div className="flex gap-2 mt-6">
+                <Button onClick={async () => {
+                  if (!saleDraft.clientId || !saleDraft.financingMethodId || saleDraft.items.length === 0) return
+                  const body = { clientId: saleDraft.clientId, financingMethodId: saleDraft.financingMethodId, items: saleDraft.items }
+                  const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+                  const ok = await handleApiResponse(res, { success: 'Venta creada' })
+                  if (ok) {
+                    const created = await res!.json()
+                    setSales((prev) => [created, ...prev])
+                    setIsAddingSale(false)
+                  }
+                }}>
+                  <Save className="w-4 h-4 mr-2" /> Guardar venta
+                </Button>
+                <Button variant="outline" onClick={() => setIsAddingSale(false)}>
+                  <X className="w-4 h-4 mr-2" /> Cancelar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+  </TabsContent>
       </Tabs>
     </div>
   )
