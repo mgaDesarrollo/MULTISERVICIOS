@@ -211,30 +211,7 @@ export function ContactSection() {
               </CardContent>
             </Card>
 
-            {/* Additional Info */}
-            <Card className="shadow-lg bg-secondary/5 border-secondary/20">
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-foreground mb-3">¿Por qué elegirnos?</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-secondary" />
-                    Respuesta en menos de 24 horas
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-secondary" />
-                    Tasas competitivas del mercado
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-secondary" />
-                    Proceso 100% digital y seguro
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-secondary" />
-                    Asesoría personalizada gratuita
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
+            {/* Sección “¿Por qué elegirnos?” duplicada eliminada */}
           </div>
         </div>
       </div>
