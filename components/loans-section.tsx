@@ -8,8 +8,8 @@ import { CreditCard, Building2 } from "lucide-react"
 const loanTypes = [
   {
     icon: CreditCard,
-    title: "Líneas de Crédito",
-    description: "Accede a fondos cuando los necesites con nuestra línea de crédito revolvente.",
+  title: "lineas de creditos para articulos seleccionados",
+  description: "accede a creditos para compra de productos que necesites",
     benefits: ["Disponibilidad inmediata", "Solo pagas lo que usas", "Renovación automática"],
     color: "bg-purple-500",
   },
@@ -38,11 +38,8 @@ export function LoansSection() {
             Préstamos
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Soluciones de Financiamiento a tu Medida
+            obtene capital para hacer crecer tu negocio, consultanos por asesoria
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Ofrecemos diferentes tipos de préstamos diseñados específicamente para las necesidades de tu empresa.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

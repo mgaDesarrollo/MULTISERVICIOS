@@ -23,10 +23,7 @@ export function HeroSection() {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-secondary/20 to-primary/20 backdrop-blur-sm text-secondary border border-secondary/20 px-6 py-3 rounded-full text-sm font-semibold mb-12 shadow-lg">
-            <TrendingUp className="w-4 h-4" />
-            Soluciones Financieras Profesionales
-          </div>
+          {/* Etiqueta removida por solicitud */}
 
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-mono font-black text-foreground mb-8 leading-[0.9] tracking-tight">
             <span className="bg-gradient-to-r from-foreground via-secondary to-primary bg-clip-text text-transparent">

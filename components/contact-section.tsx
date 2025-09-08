@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Mail, Phone, MapPin, Clock, MessageCircle, Send, CheckCircle } from "lucide-react"
+import { Mail, Phone, Clock, MessageCircle, Send, CheckCircle } from "lucide-react"
 
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -187,17 +187,7 @@ export function ContactSection() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-secondary" />
-                  <div>
-                    <div className="font-medium">Dirección</div>
-                    <div className="text-muted-foreground">
-                      Av. Principal 123, Centro Financiero
-                      <br />
-                      Ciudad, País 12345
-                    </div>
-                  </div>
-                </div>
+                {/* Dirección eliminada por solicitud */}
 
                 <div className="flex items-center gap-3">
                   <Clock className="w-5 h-5 text-secondary" />

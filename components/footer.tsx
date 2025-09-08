@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Facebook, Linkedin, Twitter, Instagram, Mail, Phone, MapPin } from "lucide-react"
+import { Facebook, Linkedin, Twitter, Instagram, Mail, Phone } from "lucide-react"
 
 export function Footer() {
   const scrollToSection = (sectionId: string) => {
@@ -97,16 +97,6 @@ export function Footer() {
             <div>
               <h3 className="font-semibold text-lg mb-6">Contacto</h3>
               <ul className="space-y-4">
-                <li className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-secondary mt-0.5" />
-                  <div className="text-primary-foreground/80">
-                    Av. Principal 123
-                    <br />
-                    Centro Financiero
-                    <br />
-                    Ciudad, País 12345
-                  </div>
-                </li>
                 <li className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-secondary" />
                   <div className="text-primary-foreground/80">+1 (234) 567-8900</div>
