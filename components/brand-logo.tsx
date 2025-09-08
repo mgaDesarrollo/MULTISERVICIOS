@@ -30,7 +30,7 @@ export function BrandLogo({ onClick }: { onClick?: () => void }) {
         <span className="text-xl font-black bg-gradient-to-r from-foreground via-cyan-400 to-purple-500 bg-clip-text text-transparent">
           MULTISERVICIOS
         </span>
-        <div className="text-xs text-muted-foreground font-medium tracking-wider">FINANCIERA</div>
+  <div className="text-xs text-muted-foreground font-medium tracking-wider">Apoyamos el crecimiento de tu negocio</div>
       </div>
     </div>
   )

@@ -12,11 +12,12 @@ async function main() {
   ]
 
   for (const m of methodsData) {
-    await prisma.financingMethod.upsert({
-      where: { name: m.name },
-      update: m,
-      create: m,
-    })
+    const existing = await prisma.financingMethod.findFirst({ where: { name: m.name } })
+    if (existing) {
+      await prisma.financingMethod.update({ where: { id: existing.id }, data: m })
+    } else {
+      await prisma.financingMethod.create({ data: m })
+    }
   }
 
   const clients = await prisma.client.findMany({ take: 5, orderBy: { id: "asc" } })
@@ -35,7 +36,7 @@ async function main() {
     const items = Array.from({ length: itemsCount }).map((_, idx) => {
       const p = products[(i + idx) % products.length]
       const quantity = (idx % 2) + 1
-      const unitPrice = Number(p.price as unknown as string)
+  const unitPrice = Number((p.price as unknown as any)?.toString?.() ?? p.price)
       return { productId: p.id, quantity, unitPrice }
     })
 
