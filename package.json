@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+  "build": "prisma generate && next build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
@@ -12,7 +12,8 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:seed:products": "tsx prisma/seed-products.ts",
   "prisma:seed:clients": "tsx prisma/seed-clients.ts",
-  "prisma:seed:financing-sales": "tsx prisma/seed-financing-and-sales.ts"
+  "prisma:seed:financing-sales": "tsx prisma/seed-financing-and-sales.ts",
+  "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

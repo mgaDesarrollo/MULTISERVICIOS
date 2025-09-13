@@ -204,6 +204,21 @@ export function AdminPanel() {
     return copy
   }
 
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/api/logout', { method: 'POST' })
+      if (res.ok) {
+        toast({ title: 'Sesión cerrada' })
+        if (typeof window !== 'undefined') window.location.href = '/login'
+      } else {
+        toast({ title: 'Error', description: 'No se pudo cerrar sesión', variant: 'destructive' as any })
+      }
+    } catch (e) {
+      toast({ title: 'Error', description: 'Fallo inesperado', variant: 'destructive' as any })
+    }
+  }
+
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: "",
     brand: "",
@@ -508,6 +523,12 @@ export function AdminPanel() {
             <Settings className="w-6 h-6" />
             <h1 className="text-3xl font-bold">Panel de Administración</h1>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => setActiveTab("products")}>Inicio</Button>
+          <Button variant="destructive" size="sm" onClick={handleLogout}>
+            Cerrar Sesión
+          </Button>
         </div>
       </div>
 
