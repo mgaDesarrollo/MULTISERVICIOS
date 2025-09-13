@@ -39,7 +39,7 @@ export default function LoginPage() {
     <div className={`min-h-screen flex items-center justify-center bg-background transition-colors duration-300`}> 
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
-          <CardTitle>Iniciar sesión</CardTitle>
+          <CardTitle style={{ fontFamily: 'var(--font-title)' }}>Iniciar sesión</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

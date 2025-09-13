@@ -244,7 +244,10 @@ export function ProductsSection() {
   }
 
   return (
-    <section id="productos" className="py-20 bg-white">
+    <section
+      id="productos"
+      className="py-20 bg-background transition-colors duration-300"
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <Badge variant="secondary" className="mb-4">
@@ -445,16 +448,18 @@ export function ProductsSection() {
                         {visible.map((product, index) => (
                   <Card
                     key={product.id ?? index}
-                    className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                    className="group relative cursor-pointer bg-white dark:bg-white border border-neutral-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-[3px] rounded-xl overflow-hidden"
                     onClick={() => router.push(`/productos/${product.id ?? index}`)}
                   >
-                    <CardHeader className="p-0">
-                      <div className="relative overflow-hidden rounded-t-lg">
-                        <div className="w-full h-32 md:h-48 bg-white flex items-center justify-center">
+                    {/* Barra superior por categoría */}
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 opacity-70 group-hover:opacity-100 transition-opacity" />
+                    <CardHeader className="p-0 bg-white dark:bg-white">
+                      <div className="relative overflow-hidden rounded-t-lg bg-white dark:bg-white">
+                        <div className="w-full aspect-[4/3] flex items-center justify-center p-2 md:p-3">
                           <img
                             src={product.image || "/placeholder.svg"}
                             alt={product.title}
-                            className="max-w-full max-h-full object-contain"
+                            className="max-w-full max-h-full object-contain drop-shadow-sm group-hover:drop-shadow-md transition"
                           />
                         </div>
                         <div className="absolute top-2 md:top-4 right-2 md:right-4 text-right">
@@ -478,18 +483,18 @@ export function ProductsSection() {
                           </Badge>
                         </div>
                         <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4">
-                          <Badge variant="outline" className="bg-white/90 text-xs">
+                          <Badge variant="outline" className="bg-white/90 text-xs text-neutral-600 border border-neutral-300">
                             {product.brand}
                           </Badge>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-3 md:p-6 flex flex-col h-full">
-                      <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
-                        <CardTitle className="text-sm md:text-xl mb-1 md:mb-0 line-clamp-2">{product.title}</CardTitle>
-                        <span className="text-lg md:text-2xl font-bold text-primary">{product.price}</span>
+                    <CardContent className="p-3 md:p-6 flex flex-col h-full text-neutral-800">
+                      <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2 text-neutral-900">
+                        <CardTitle className="text-sm md:text-xl mb-1 md:mb-0 line-clamp-2 font-semibold">{product.title}</CardTitle>
+                        <span className="text-lg md:text-2xl font-bold text-blue-700 tracking-tight">{product.price}</span>
                       </div>
-                      <div className="flex items-center gap-1 md:gap-2 mb-2">
+                      <div className="flex items-center gap-1 md:gap-2 mb-2 text-yellow-500">
                         <div className="flex items-center">
                           {[...Array(5)].map((_, i) => (
                             <Star
@@ -498,13 +503,13 @@ export function ProductsSection() {
                             />
                           ))}
                         </div>
-                        <span className="text-xs md:text-sm text-muted-foreground">({product.rating})</span>
+                        <span className="text-xs md:text-sm text-neutral-500">({product.rating})</span>
                       </div>
                       {/* Descripción oculta en card; se muestra en la página de detalle */}
                       <div className="space-y-1 md:space-y-2 mt-auto">
                         <Button
                           variant="outline"
-                          className="w-full bg-transparent text-xs md:text-sm h-8 md:h-10"
+                          className="w-full bg-white hover:bg-neutral-50 text-[10px] sm:text-xs md:text-sm h-8 md:h-10 border-neutral-300"
                           onClick={(e) => {
                             e.stopPropagation()
                             router.push(`/productos/${product.id ?? index}`)
@@ -514,7 +519,7 @@ export function ProductsSection() {
                           Ver Detalles
                         </Button>
                         <Button
-                          className="w-full bg-transparent text-xs md:text-sm h-8 md:h-10"
+                          className="w-full bg-white hover:bg-neutral-50 text-[10px] sm:text-xs md:text-sm h-8 md:h-10 border border-neutral-300"
                           variant="outline"
                           onClick={() => addToCart(product, key)}
                         >
@@ -522,7 +527,7 @@ export function ProductsSection() {
                           <span className="hidden sm:inline">Agregar al </span>Carrito
                         </Button>
                         <Button
-                          className="w-full bg-orange-500 hover:bg-orange-600 text-white text-xs md:text-sm h-8 md:h-10"
+                          className="w-full bg-orange-500 hover:bg-orange-600 text-white text-[10px] sm:text-xs md:text-sm h-8 md:h-10 shadow-md shadow-orange-500/20"
                           onClick={() => handleWhatsAppClick(product.whatsappMessage)}
                         >
                           <MessageCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />

@@ -23,7 +23,7 @@ async function main() {
   // Generadores por categoría
   const gen = {
     cocina: (i: number) => {
-      const brands = ["Samsung", "Whirlpool", "Electrolux", "Bosch", "Philips", "Beko"]
+      const brands = ["Samsung", "Whirlpool", "Electrolux", "Bosch", "Philips", "Beko"];
       const name = [
         "Horno Eléctrico Empotrable",
         "Horno a Gas",
@@ -31,16 +31,24 @@ async function main() {
         "Anafe a Gas",
         "Campana Extractora",
         "Microondas Grill",
-      ][i]
-      const brand = brands[i]
-      const basePrice = 499 + i * 90
+      ][i];
+      const brand = brands[i];
+      const basePrice = 499 + i * 90;
+      const images = [
+        "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=600&q=80", // horno
+        "https://images.unsplash.com/photo-1506368083636-2e1b60b7f4c4?auto=format&fit=crop&w=600&q=80", // cocina gas
+        "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=600&q=80", // vitro
+        "https://images.unsplash.com/photo-1506368083636-2e1b60b7f4c4?auto=format&fit=crop&w=600&q=80", // gas
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // campana
+        "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=600&q=80", // microondas
+      ];
       return {
         name: `${name} ${60 + i}cm`,
         description: `${name} con múltiples funciones y acabado premium.`,
         technicalInfo:
           "Norma IRAM. Alimentación 220V~50Hz. Accesorios incluidos según modelo. Manual en español.",
-        image: "/placeholder.jpg",
-        images: ["/placeholder.jpg", "/placeholder-user.jpg", "/placeholder-logo.png"],
+        image: images[i],
+        images: [images[i]],
         price: toMoney(basePrice),
         brand,
         rating: 4 + (i % 3) * 0.3,
@@ -55,10 +63,10 @@ async function main() {
           SKU: `COC-${1000 + i}`,
         },
         categoryId: findCat("cocina"),
-      }
+      };
     },
     heladeras: (i: number) => {
-      const brands = ["Whirlpool", "Samsung", "LG", "Patrick", "Gafa", "GE"]
+      const brands = ["Whirlpool", "Samsung", "LG", "Patrick", "Gafa", "GE"];
       const name = [
         "Heladera No Frost",
         "Heladera Cíclica",
@@ -66,15 +74,23 @@ async function main() {
         "Heladera Compacta",
         "Freezer Vertical",
         "Freezer Horizontal",
-      ][i]
-      const brand = brands[i]
-      const basePrice = 699 + i * 120
+      ][i];
+      const brand = brands[i];
+      const basePrice = 699 + i * 120;
+      const images = [
+        "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=600&q=80", // heladera no frost
+        "https://images.unsplash.com/photo-1506368083636-2e1b60b7f4c4?auto=format&fit=crop&w=600&q=80", // heladera cíclica
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // side by side
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // compacta
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // freezer vertical
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // freezer horizontal
+      ];
       return {
         name: `${name} ${300 + i * 20}L`,
         description: `${name} eficiente con estantes de vidrio templado y amplio espacio.`,
         technicalInfo: "Refrigerante R600a. Control electrónico. Bajo ruido.",
-        image: "/placeholder.jpg",
-        images: ["/placeholder.jpg", "/placeholder-user.jpg"],
+        image: images[i],
+        images: [images[i]],
         price: toMoney(basePrice),
         brand,
         rating: 4.1 + (i % 4) * 0.2,
@@ -88,10 +104,10 @@ async function main() {
           Modelo: `HL-${200 + i}`,
         },
         categoryId: findCat("heladeras"),
-      }
+      };
     },
     lavanderia: (i: number) => {
-      const brands = ["LG", "Samsung", "Drean", "Whirlpool", "Electrolux", "Candy"]
+      const brands = ["LG", "Samsung", "Drean", "Whirlpool", "Electrolux", "Candy"];
       const name = [
         "Lavarropas Automático",
         "Lavarropas Inverter",
@@ -99,15 +115,23 @@ async function main() {
         "Secarropas Centrifugo",
         "Lavasecarropas",
         "Secadora Condensación",
-      ][i]
-      const brand = brands[i]
-      const basePrice = 449 + i * 110
+      ][i];
+      const brand = brands[i];
+      const basePrice = 449 + i * 110;
+      const images = [
+        "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=600&q=80", // lavarropas
+        "https://images.unsplash.com/photo-1506368083636-2e1b60b7f4c4?auto=format&fit=crop&w=600&q=80", // inverter
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // carga superior
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // secarropas
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // lavasecarropas
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80", // secadora
+      ];
       return {
         name: `${name} ${7 + i} kg`,
         description: `${name} con múltiples programas y alta eficiencia.`,
         technicalInfo: "Entrada 220-240V. Bloqueo para niños. Nivel de ruido reducido.",
-        image: "/placeholder.jpg",
-        images: ["/placeholder.jpg", "/placeholder.svg"],
+        image: images[i],
+        images: [images[i]],
         price: toMoney(basePrice),
         brand,
         rating: 4 + (i % 3) * 0.25,
@@ -121,10 +145,10 @@ async function main() {
           Modelo: `LV-${300 + i}`,
         },
         categoryId: findCat("lavanderia"),
-      }
+      };
     },
     tecnologia: (i: number) => {
-      const brands = ["TCL", "Samsung", "LG", "Sony", "Noblex", "Philips"]
+      const brands = ["TCL", "Samsung", "LG", "Sony", "Noblex", "Philips"];
       const name = [
         "Smart TV 43\" 4K",
         'Smart TV 50" 4K HDR',
@@ -132,15 +156,23 @@ async function main() {
         "Soundbar 2.1",
         "Monitor 27\" QHD",
         "Notebook 15.6\" i5",
-      ][i]
-      const brand = brands[i]
-      const basePrice = 399 + i * 130
+      ][i];
+      const brand = brands[i];
+      const basePrice = 399 + i * 130;
+      const images = [
+        "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80", // tv
+        "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80", // tv hdr
+        "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80", // tv 55
+        "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=600&q=80", // soundbar
+        "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=600&q=80", // monitor
+        "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=600&q=80", // notebook
+      ];
       return {
         name,
         description: `${name} con gran calidad de imagen y conectividad.`,
         technicalInfo: "WiFi, Bluetooth, múltiples puertos, control remoto incluido.",
-        image: "/placeholder.jpg",
-        images: ["/placeholder.jpg", "/placeholder-user.jpg"],
+        image: images[i],
+        images: [images[i]],
         price: toMoney(basePrice),
         brand,
         rating: 4.2 + (i % 3) * 0.2,
@@ -154,10 +186,10 @@ async function main() {
           Garantía: "12 meses",
         },
         categoryId: findCat("tecnologia"),
-      }
+      };
     },
     muebles: (i: number) => {
-      const brands = ["Genérica", "Genérica", "Genérica", "Genérica", "Genérica", "Genérica"]
+      const brands = ["Genérica", "Genérica", "Genérica", "Genérica", "Genérica", "Genérica"];
       const name = [
         "Juego de Comedor 6 Sillas",
         "Mesa Extensible",
@@ -165,15 +197,23 @@ async function main() {
         "Rack para TV",
         "Placard 6 Puertas",
         "Escritorio Gamer",
-      ][i]
-      const brand = brands[i]
-      const basePrice = 199 + i * 150
+      ][i];
+      const brand = brands[i];
+      const basePrice = 199 + i * 150;
+      const images = [
+        "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=600&q=80", // comedor
+        "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=600&q=80", // mesa
+        "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=600&q=80", // silla
+        "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=600&q=80", // rack
+        "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=600&q=80", // placard
+        "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=600&q=80", // escritorio
+      ];
       return {
         name,
         description: `${name} con materiales resistentes y diseño moderno.`,
         technicalInfo: "Madera tratada. Fácil armado. Manual incluido.",
-        image: "/placeholder.jpg",
-        images: ["/placeholder.jpg"],
+        image: images[i],
+        images: [images[i]],
         price: toMoney(basePrice),
         brand,
         rating: 4 + (i % 4) * 0.2,
@@ -185,7 +225,7 @@ async function main() {
           Modelo: `MB-${500 + i}`,
         },
         categoryId: findCat("muebles"),
-      }
+      };
     },
   } as const
 

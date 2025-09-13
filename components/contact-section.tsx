@@ -69,18 +69,18 @@ export function ContactSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto items-stretch">
           {/* Contact Form */}
-          <Card className="shadow-lg">
-            <CardHeader>
+          <Card className="shadow-lg flex flex-col h-full">
+            <CardHeader className="pb-4">
               <CardTitle className="text-2xl">Solicitar Asesoría</CardTitle>
               <CardDescription>
                 Completa el formulario y nos pondremos en contacto contigo en menos de 24 horas.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="mt-2 flex-1 flex flex-col">
               {!isSubmitted ? (
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6 flex-1 flex flex-col">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Nombre Completo *</Label>
@@ -133,7 +133,7 @@ export function ContactSection() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex-1 flex flex-col">
                     <Label htmlFor="message">Mensaje</Label>
                     <Textarea
                       id="message"
@@ -142,10 +142,10 @@ export function ContactSection() {
                       onChange={handleInputChange}
                       placeholder="Cuéntanos sobre tu proyecto y necesidades de financiamiento..."
                       rows={4}
+                      className="min-h-[120px] flex-1"
                     />
                   </div>
-
-                  <Button type="submit" className="w-full bg-secondary hover:bg-secondary/90">
+                  <Button type="submit" className="w-full bg-secondary hover:bg-secondary/90 mt-2">
                     <Send className="w-4 h-4 mr-2" />
                     Enviar Consulta
                   </Button>
@@ -163,14 +163,14 @@ export function ContactSection() {
           </Card>
 
           {/* Contact Information */}
-          <div className="space-y-8">
+          <div className="space-y-8 h-full flex flex-col">
             {/* Quick Contact */}
-            <Card className="shadow-lg">
-              <CardHeader>
+            <Card className="shadow-lg flex flex-col h-full">
+              <CardHeader className="pb-4">
                 <CardTitle className="text-xl">Contacto Directo</CardTitle>
                 <CardDescription>Prefiere hablar directamente? Contáctanos por estos medios.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 flex-1 flex flex-col">
                 <div className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-secondary" />
                   <div>
@@ -203,7 +203,7 @@ export function ContactSection() {
 
                 <Button
                   onClick={handleWhatsAppClick}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white mt-6"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white mt-auto"
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Chatear por WhatsApp
