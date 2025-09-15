@@ -64,17 +64,48 @@ model FinancingMethod {
   sales        Sale[]
 }
 
+enum SaleStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum InstallmentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
+  MP
+  STRIPE
+  OTHER
+}
+
 model Sale {
   id                  Int               @id @default(autoincrement())
   client              Client            @relation(fields: [clientId], references: [id])
   clientId            Int
   financingMethod     FinancingMethod   @relation(fields: [financingMethodId], references: [id])
   financingMethodId   Int
-  subtotal            Decimal           @db.Decimal(10,2)
-  interest            Decimal           @db.Decimal(10,2)
-  total               Decimal           @db.Decimal(10,2)
+  subtotal            Decimal           @db.Decimal(12,2)
+  downPayment         Decimal           @default(0) @db.Decimal(12,2)
+  financedAmount      Decimal           @default(0) @db.Decimal(12,2)
+  interest            Decimal           @db.Decimal(12,2)
+  total               Decimal           @db.Decimal(12,2)
+  installmentCount    Int               @default(1)
+  appliedRate         Float             @default(0)
+  startDate           DateTime          @default(now())
+  status              SaleStatus        @default(ACTIVE)
   createdAt           DateTime          @default(now())
   items               SaleItem[]
+  installments        Installment[]
+  payments            Payment[]
 }
 
 model SaleItem {
@@ -85,4 +116,39 @@ model SaleItem {
   productId  Int
   quantity   Int      @default(1)
   unitPrice  Decimal  @db.Decimal(10,2)
+}
+
+model Installment {
+  id           Int                @id @default(autoincrement())
+  sale         Sale               @relation(fields: [saleId], references: [id])
+  saleId       Int
+  number       Int
+  dueDate      DateTime
+  principalDue Decimal            @db.Decimal(12,2)
+  interestDue  Decimal            @db.Decimal(12,2)
+  feeDue       Decimal            @default(0) @db.Decimal(12,2)
+  totalDue     Decimal            @db.Decimal(12,2)
+  amountPaid   Decimal            @default(0) @db.Decimal(12,2)
+  paidAt       DateTime?
+  status       InstallmentStatus  @default(PENDING)
+  payments     Payment[]
+
+  @@unique([saleId, number])
+  @@index([dueDate])
+}
+
+model Payment {
+  id              Int             @id @default(autoincrement())
+  sale            Sale            @relation(fields: [saleId], references: [id])
+  saleId          Int
+  installment     Installment?    @relation(fields: [installmentId], references: [id])
+  installmentId   Int?
+  date            DateTime        @default(now())
+  amount          Decimal         @db.Decimal(12,2)
+  method          PaymentMethod   @default(CASH)
+  reference       String?
+  notes           String?
+  appliedPrincipal Decimal        @default(0) @db.Decimal(12,2)
+  appliedInterest  Decimal        @default(0) @db.Decimal(12,2)
+  appliedFees      Decimal        @default(0) @db.Decimal(12,2)
 }

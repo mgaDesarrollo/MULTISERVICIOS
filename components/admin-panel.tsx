@@ -12,7 +12,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, DollarSign, Building2, FileText, Info, MoreVertical, Phone as PhoneIcon, Mail, Download, Eye } from "lucide-react"
+import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, DollarSign, Building2, FileText, Info, MoreVertical, Phone as PhoneIcon, Mail, Download, Eye, CalendarClock } from "lucide-react"
+import { differenceInCalendarDays, format as formatDate } from "date-fns"
 import { useToast } from "@/components/ui/use-toast"
 import { BrandLogo } from "@/components/brand-logo"
 
@@ -108,6 +109,9 @@ export function AdminPanel() {
   const [sales, setSales] = useState<Sale[]>([])
   const [isAddingSale, setIsAddingSale] = useState(false)
   const [saleDraft, setSaleDraft] = useState<{ clientId?: number; financingMethodId?: number; items: SaleItemInput[] }>({ items: [] })
+  // Schedule viewer state
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false)
+  const [scheduleSale, setScheduleSale] = useState<any | null>(null)
 
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
@@ -1983,7 +1987,7 @@ export function AdminPanel() {
                     <TableHead>Subtotal</TableHead>
                     <TableHead>Interés</TableHead>
                     <TableHead>Total</TableHead>
-                    <TableHead>Acciones</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1995,7 +1999,17 @@ export function AdminPanel() {
                       <TableCell>${typeof s.subtotal === 'number' ? s.subtotal.toFixed(2) : s.subtotal}</TableCell>
                       <TableCell>${typeof s.interest === 'number' ? s.interest.toFixed(2) : s.interest}</TableCell>
                       <TableCell className="font-semibold">${typeof s.total === 'number' ? s.total.toFixed(2) : s.total}</TableCell>
-                      <TableCell>
+                      <TableCell className="space-x-2 text-right">
+                        <Button size="sm" variant="secondary" onClick={async () => {
+                          const res = await fetch(`/api/sales/${s.id}`)
+                          const ok = await handleApiResponse(res)
+                          if (!ok) return
+                          const data = await res!.json()
+                          setScheduleSale(data)
+                          setIsScheduleOpen(true)
+                        }}>
+                          <CalendarClock className="w-4 h-4 mr-1" /> Cronograma
+                        </Button>
                         <Button size="sm" variant="destructive" onClick={async () => {
                           if (!confirm(`¿Eliminar venta #${s.id}?`)) return
                           const res = await fetch(`/api/sales/${s.id}`, { method: 'DELETE' })
@@ -2016,6 +2030,76 @@ export function AdminPanel() {
               </Table>
             </CardContent>
           </Card>
+
+          {/* Schedule Dialog */}
+          <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Cronograma de cuotas</DialogTitle>
+                <DialogDescription>
+                  {scheduleSale ? (
+                    <span>
+                      Venta #{scheduleSale.id} · Cliente: {scheduleSale.client?.name ?? scheduleSale.clientId}
+                    </span>
+                  ) : 'Cargando...'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Vencimiento</TableHead>
+                      <TableHead>Capital</TableHead>
+                      <TableHead>Interés</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Pagado</TableHead>
+                      <TableHead>Saldo</TableHead>
+                      <TableHead>Mora</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(scheduleSale?.installments ?? []).map((inst: any) => {
+                      const today = new Date()
+                      const due = new Date(inst.dueDate)
+                      const totalDue = Number(inst.totalDue)
+                      const paid = Number(inst.amountPaid)
+                      const remaining = Math.max(0, totalDue - paid)
+                      const overdueDays = remaining > 0 && due < today ? Math.max(0, differenceInCalendarDays(today, due)) : 0
+                      const dailyRate = 0.001 // 0.1% diario (ajustable)
+                      const mora = Number((remaining * dailyRate * overdueDays).toFixed(2))
+                      const state = remaining === 0 ? 'PAID' : (overdueDays > 0 ? 'OVERDUE' : (inst.status || 'PENDING'))
+                      const fmt = (n: any) => typeof n === 'number' ? n.toFixed(2) : n
+                      return (
+                        <TableRow key={inst.id} className={overdueDays > 0 && remaining > 0 ? 'bg-red-500/5' : ''}>
+                          <TableCell className="font-mono">{inst.number}</TableCell>
+                          <TableCell>{formatDate(due, 'dd/MM/yyyy')}</TableCell>
+                          <TableCell>${fmt(Number(inst.principalDue))}</TableCell>
+                          <TableCell>${fmt(Number(inst.interestDue))}</TableCell>
+                          <TableCell className="font-medium">${fmt(totalDue)}</TableCell>
+                          <TableCell>${fmt(paid)}</TableCell>
+                          <TableCell>${fmt(remaining)}</TableCell>
+                          <TableCell className={mora > 0 ? 'text-red-500 font-semibold' : ''}>${fmt(mora)}</TableCell>
+                          <TableCell>{state}</TableCell>
+                        </TableRow>
+                      )
+                    })}
+                    {(!scheduleSale?.installments || scheduleSale.installments.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground">Sin cuotas</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setIsScheduleOpen(false)}>
+                  Cerrar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Add Sale Dialog */}
           <Dialog open={isAddingSale} onOpenChange={setIsAddingSale}>
