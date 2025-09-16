@@ -112,6 +112,10 @@ export function AdminPanel() {
   // Schedule viewer state
   const [isScheduleOpen, setIsScheduleOpen] = useState(false)
   const [scheduleSale, setScheduleSale] = useState<any | null>(null)
+  const [isPayOpen, setIsPayOpen] = useState(false)
+  const [payAmount, setPayAmount] = useState<string>("")
+  const [payMethod, setPayMethod] = useState<string>("CASH")
+  const [payInstallmentId, setPayInstallmentId] = useState<number | undefined>(undefined)
 
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
@@ -2010,6 +2014,19 @@ export function AdminPanel() {
                         }}>
                           <CalendarClock className="w-4 h-4 mr-1" /> Cronograma
                         </Button>
+                        <Button size="sm" onClick={async () => {
+                          const res = await fetch(`/api/sales/${s.id}`)
+                          const ok = await handleApiResponse(res)
+                          if (!ok) return
+                          const data = await res!.json()
+                          setScheduleSale(data)
+                          setPayInstallmentId(undefined)
+                          setPayAmount("")
+                          setPayMethod("CASH")
+                          setIsPayOpen(true)
+                        }}>
+                          <DollarSign className="w-4 h-4 mr-1" /> Registrar pago
+                        </Button>
                         <Button size="sm" variant="destructive" onClick={async () => {
                           if (!confirm(`¿Eliminar venta #${s.id}?`)) return
                           const res = await fetch(`/api/sales/${s.id}`, { method: 'DELETE' })
@@ -2096,6 +2113,98 @@ export function AdminPanel() {
               <div className="flex justify-end">
                 <Button variant="outline" onClick={() => setIsScheduleOpen(false)}>
                   Cerrar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Payment Dialog */}
+          <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Registrar pago</DialogTitle>
+                <DialogDescription>
+                  {scheduleSale ? (
+                    <span>
+                      Venta #{scheduleSale.id} · {scheduleSale.client?.name ?? scheduleSale.clientId}
+                    </span>
+                  ) : 'Cargando...'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Monto</Label>
+                  <Input type="number" min="0" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00" />
+                </div>
+                <div>
+                  <Label>Método</Label>
+                  <Select value={payMethod} onValueChange={setPayMethod}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar método" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CASH">Efectivo</SelectItem>
+                      <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                      <SelectItem value="CARD">Tarjeta</SelectItem>
+                      <SelectItem value="MP">Mercado Pago</SelectItem>
+                      <SelectItem value="STRIPE">Stripe</SelectItem>
+                      <SelectItem value="OTHER">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Cuota (opcional)</Label>
+                  <Select value={payInstallmentId ? String(payInstallmentId) : ""} onValueChange={(v) => setPayInstallmentId(v ? Number(v) : undefined)}>
+                    <SelectTrigger><SelectValue placeholder="Sin asignar (automático)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin asignar</SelectItem>
+                      {(scheduleSale?.installments ?? []).map((inst: any) => {
+                        const total = Number(inst.totalDue)
+                        const paid = Number(inst.amountPaid)
+                        const remaining = Math.max(0, total - paid)
+                        return (
+                          <SelectItem key={inst.id} value={String(inst.id)}>
+                            #{inst.number} · Vence {formatDate(new Date(inst.dueDate), 'dd/MM/yyyy')} · Saldo ${remaining.toFixed(2)}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsPayOpen(false)}>Cancelar</Button>
+                <Button
+                  onClick={async () => {
+                    const amount = Number(payAmount)
+                    if (!scheduleSale?.id) return
+                    if (!Number.isFinite(amount) || amount <= 0) {
+                      toast({ title: 'Monto inválido', variant: 'destructive' as any })
+                      return
+                    }
+                    const res = await fetch('/api/payments', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        saleId: scheduleSale.id,
+                        installmentId: payInstallmentId,
+                        amount,
+                        method: payMethod,
+                      })
+                    })
+                    const ok = await handleApiResponse(res, { success: 'Pago registrado' })
+                    if (!ok) return
+                    // Refresh schedule data
+                    const res2 = await fetch(`/api/sales/${scheduleSale.id}`)
+                    const ok2 = await handleApiResponse(res2)
+                    if (!ok2) return
+                    const data = await res2!.json()
+                    setScheduleSale(data)
+                    setIsPayOpen(false)
+                    setPayInstallmentId(undefined)
+                    setPayAmount("")
+                    setPayMethod("CASH")
+                  }}
+                >
+                  Guardar pago
                 </Button>
               </div>
             </DialogContent>

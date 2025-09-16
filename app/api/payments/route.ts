@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { differenceInCalendarDays } from "date-fns"
 
 const BodySchema = z.object({
   saleId: z.number().int().positive(),
@@ -27,30 +28,60 @@ export async function POST(request: Request) {
     const sale = await prisma.sale.findUnique({ where: { id: saleId } })
     if (!sale) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 })
 
-    // Simple allocation: if installmentId provided, apply to that installment
-    let appliedPrincipal = 0
-    let appliedInterest = 0
-    let appliedFees = 0
+  // Allocation order: fees (mora) -> interest -> principal
+  let appliedPrincipal = 0
+  let appliedInterest = 0
+  let appliedFees = 0
 
     const db: any = prisma as any
 
     if (installmentId) {
       const inst = await db.installment.findUnique({ where: { id: installmentId } })
       if (!inst) return NextResponse.json({ error: "Cuota no encontrada" }, { status: 404 })
-      const toCover = Number(inst.totalDue) - Number(inst.amountPaid)
-      const pay = Math.min(Number(amount), Math.max(0, toCover))
-      // naive split: pay interest first then principal, fees assumed 0 here
-      const interestRemaining = Math.max(0, Number(inst.interestDue) - Number(inst.amountPaid))
-      const interestPay = Math.min(pay, interestRemaining)
+      const today = new Date()
+      const due = new Date(inst.dueDate)
+      const totalDue = Number(inst.totalDue)
+      const amountPaidPrev = Number(inst.amountPaid)
+      // Determine prior allocations based on aggregate paid
+      const interestDue = Number(inst.interestDue)
+      const principalDue = Number(inst.principalDue)
+      const interestPaidBefore = Math.min(amountPaidPrev, interestDue)
+      const principalPaidBefore = Math.max(0, Math.min(principalDue, amountPaidPrev - interestPaidBefore))
+      const feePaidBefore = Math.max(0, amountPaidPrev - interestPaidBefore - principalPaidBefore)
+      const piRemaining = Math.max(0, (interestDue - interestPaidBefore) + (principalDue - principalPaidBefore))
+      // dynamic mora: apply on outstanding principal+interest if overdue
+      const overdueDays = piRemaining > 0 && due < today ? Math.max(0, differenceInCalendarDays(today, due)) : 0
+      const dailyRate = 0.001 // 0.1% diario
+      const theorFee = Number((piRemaining * dailyRate * overdueDays).toFixed(2))
+      const feeRemaining = Math.max(0, theorFee - feePaidBefore)
+      // remaining interest and principal now
+      const interestRemaining = Math.max(0, interestDue - interestPaidBefore)
+      const principalRemaining = Math.max(0, principalDue - principalPaidBefore)
+
+      let remainingPayment = Number(amount)
+      // 1) fees
+      const feesPay = Math.min(remainingPayment, feeRemaining)
+      appliedFees = feesPay
+      remainingPayment -= feesPay
+      // 2) interest
+      const interestPay = Math.min(remainingPayment, interestRemaining)
       appliedInterest = interestPay
-      const principalPay = pay - interestPay
+      remainingPayment -= interestPay
+      // 3) principal
+      const principalPay = Math.min(remainingPayment, principalRemaining)
       appliedPrincipal = principalPay
+      remainingPayment -= principalPay
+
+      const pay = feesPay + interestPay + principalPay
 
       await db.installment.update({
         where: { id: inst.id },
         data: {
-          amountPaid: (Number(inst.amountPaid) + pay) as any,
-          status: (Number(inst.amountPaid) + pay) >= Number(inst.totalDue) ? "PAID" as any : "PARTIAL" as any,
+          // Persist current accrued fee (mora) snapshot
+          feeDue: String(theorFee) as any,
+          amountPaid: (amountPaidPrev + pay) as any,
+          // Consider fees for full payment status
+          status: (amountPaidPrev + pay) >= (totalDue + theorFee) ? "PAID" as any : "PARTIAL" as any,
           paidAt: (Number(inst.amountPaid) + pay) >= Number(inst.totalDue) ? new Date() : inst.paidAt,
         },
       })

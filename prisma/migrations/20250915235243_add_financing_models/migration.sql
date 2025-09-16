@@ -16,13 +16,18 @@ CREATE TYPE "public"."PaymentMethod" AS ENUM ('CASH', 'TRANSFER', 'CARD', 'MP', 
 -- AlterTable
 ALTER TABLE "public"."Sale" ADD COLUMN     "appliedRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
 ADD COLUMN     "downPayment" DECIMAL(12,2) NOT NULL DEFAULT 0,
-ADD COLUMN     "financedAmount" DECIMAL(12,2) NOT NULL,
+ADD COLUMN     "financedAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
 ADD COLUMN     "installmentCount" INTEGER NOT NULL DEFAULT 1,
 ADD COLUMN     "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN     "status" "public"."SaleStatus" NOT NULL DEFAULT 'ACTIVE',
 ALTER COLUMN "subtotal" SET DATA TYPE DECIMAL(12,2),
 ALTER COLUMN "interest" SET DATA TYPE DECIMAL(12,2),
 ALTER COLUMN "total" SET DATA TYPE DECIMAL(12,2);
+
+-- Backfill financedAmount for any pre-existing sales
+UPDATE "public"."Sale"
+SET "financedAmount" = COALESCE("subtotal", 0) - COALESCE("downPayment", 0)
+WHERE "financedAmount" = 0;
 
 -- CreateTable
 CREATE TABLE "public"."Installment" (

@@ -27,13 +27,19 @@ export async function GET(request: Request) {
         }
       : undefined
 
-    const clients = await prisma.client.findMany({
+    const clients: any[] = await (prisma as any).client.findMany({
       where,
       orderBy: { id: "desc" },
       ...(take ? { take } : {}),
       ...(skip ? { skip } : {}),
+      include: { sales: { include: { installments: true } } },
     })
-    return NextResponse.json(clients)
+    const withMora = clients.map((c: any) => {
+      const moraTotal = (c.sales || []).reduce((acc: number, s: any) => acc + (s.installments || []).reduce((acc2: number, i: any) => acc2 + Number(i.feeDue || 0), 0), 0)
+      const { sales, ...rest } = c
+      return { ...rest, moraTotal: Number(Number(moraTotal).toFixed(2)) }
+    })
+    return NextResponse.json(withMora)
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ error: message }, { status: 500 })

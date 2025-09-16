@@ -7,8 +7,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const id = Number(idParam)
   if (!Number.isFinite(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 })
   try {
-    const sale = await prisma.sale.findUnique({ where: { id }, include: { client: true, financingMethod: true, items: { include: { product: true } }, installments: true, payments: true } as any })
+    const sale: any = await prisma.sale.findUnique({ where: { id }, include: { client: true, financingMethod: true, items: { include: { product: true } }, installments: true, payments: true } as any })
     if (!sale) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    // Aggregate mora (fees) at sale level
+    const moraTotal = (sale.installments || []).reduce((acc: number, i: any) => acc + Number(i.feeDue || 0), 0)
+    sale.moraTotal = Number(moraTotal.toFixed(2))
     return NextResponse.json(sale)
   } catch (error: any) {
     return NextResponse.json({ error: String(error?.message || error) }, { status: 500 })
