@@ -13,6 +13,7 @@
     "prisma:seed:products": "tsx prisma/seed-products.ts",
   "prisma:seed:clients": "tsx prisma/seed-clients.ts",
   "prisma:seed:financing-sales": "tsx prisma/seed-financing-and-sales.ts",
+  "prisma:seed:demo-financing": "tsx prisma/seed-demo-financing.ts",
   "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -90,7 +90,7 @@ export function AdminPanel() {
   const { toast } = useToast()
   const [products, setProducts] = useState<Product[]>(sampleProducts)
   const [categories, setCategories] = useState<Category[]>(initialCategories)
-  const [activeTab, setActiveTab] = useState("products")
+  const [activeTab, setActiveTab] = useState("dashboard")
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isAddingProduct, setIsAddingProduct] = useState(false)
@@ -139,6 +139,11 @@ export function AdminPanel() {
   // Temp inputs for features in add/edit dialogs
   const [newFeatureValue, setNewFeatureValue] = useState("")
   const [editFeatureValue, setEditFeatureValue] = useState("")
+  // Dashboard datasets
+  const [dashSales, setDashSales] = useState<any[]>([])
+  const [dashPayments, setDashPayments] = useState<any[]>([])
+  const [instToday, setInstToday] = useState<any[]>([])
+  const [instOverdue, setInstOverdue] = useState<any[]>([])
 
   // Helpers: clipboard & exports for clients
   const copyToClipboard = async (text: string, label: string) => {
@@ -227,6 +232,54 @@ export function AdminPanel() {
     }
   }
 
+  // Helpers
+  const num = (v: any) => Number((v as any)?.toString?.() ?? v) || 0
+  const currency = (n: number) => `$${n.toFixed(2)}`
+  const isSameDay = (d: Date, e: Date) => d.getFullYear() === e.getFullYear() && d.getMonth() === e.getMonth() && d.getDate() === e.getDate()
+  const parseAmount = (val: string | number) => {
+    if (typeof val === 'number') return val
+    let s = (val ?? '').toString().trim().replace(/\s/g, '')
+    const hasComma = s.includes(',')
+    const hasDot = s.includes('.')
+    if (hasComma && hasDot) {
+      // Asumimos formato es: miles con punto y decimales con coma (e.g., 1.234,56)
+      s = s.replace(/\./g, '').replace(',', '.')
+    } else if (hasComma && !hasDot) {
+      // Solo coma -> usar como decimal
+      s = s.replace(',', '.')
+    } // si solo punto o ninguno, dejamos como está
+    const n = Number(s)
+    return Number.isFinite(n) ? n : NaN
+  }
+
+  // Fetch Dashboard/Cobranzas
+  useEffect(() => {
+    const run = async () => {
+      if (activeTab === 'dashboard' || activeTab === 'cobranzas') {
+        try {
+          const [sRes, pRes, tRes, oRes] = await Promise.all([
+            fetch('/api/sales'),
+            fetch('/api/payments'),
+            fetch(`/api/installments?dueOn=${new Date().toISOString()}`),
+            fetch('/api/installments?overdueOnly=1'),
+          ])
+          const sOk = await handleApiResponse(sRes)
+          const pOk = await handleApiResponse(pRes)
+          const tOk = await handleApiResponse(tRes)
+          const oOk = await handleApiResponse(oRes)
+          if (sOk) setDashSales(await sRes!.json())
+          if (pOk) setDashPayments(await pRes!.json())
+          if (tOk) setInstToday(await tRes!.json())
+          if (oOk) setInstOverdue(await oRes!.json())
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    }
+    run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: "",
     brand: "",
@@ -247,7 +300,7 @@ export function AdminPanel() {
 
   const handleSaveProduct = async () => {
     if (editingProduct) {
-      // Subir nuevas imágenes seleccionadas (si hay)
+      // Upload newly selected images for edit (first becomes cover among new ones)
       let uploadedEditUrls: string[] = []
       if (editAllImageFiles.length > 0) {
         try {
@@ -541,7 +594,9 @@ export function AdminPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-8">
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="cobranzas">Cobranzas</TabsTrigger>
           <TabsTrigger value="products">Gestión de Productos</TabsTrigger>
           <TabsTrigger value="categories">Gestión de Categorías</TabsTrigger>
           <TabsTrigger value="clients">Gestión de Clientes</TabsTrigger>
@@ -549,6 +604,227 @@ export function AdminPanel() {
           <TabsTrigger value="financing">Métodos de Financiamiento</TabsTrigger>
           <TabsTrigger value="sales">Gestión de Ventas</TabsTrigger>
         </TabsList>
+
+        {/* Dashboard */}
+        <TabsContent value="dashboard" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>KPIs clave</CardTitle>
+              <CardDescription>Ventas y cobranzas recientes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const now = new Date()
+                const startMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+                const salesToday = dashSales.filter((s) => s.createdAt && isSameDay(new Date(s.createdAt), now))
+                const salesMonth = dashSales.filter((s) => s.createdAt && new Date(s.createdAt) >= startMonth)
+                const totalSalesToday = salesToday.reduce((a, s) => a + num(s.total), 0)
+                const totalSalesMonth = salesMonth.reduce((a, s) => a + num(s.total), 0)
+                const ticketAvg = salesMonth.length ? totalSalesMonth / salesMonth.length : 0
+                const paysToday = dashPayments.filter((p) => p.date && isSameDay(new Date(p.date), now))
+                const paysMonth = dashPayments.filter((p) => p.date && new Date(p.date) >= startMonth)
+                const cobranzasHoy = paysToday.reduce((a, p) => a + num(p.amount), 0)
+                const cobranzasMes = paysMonth.reduce((a, p) => a + num(p.amount), 0)
+                // Saldo en mora (estimado dinámico)
+                const dailyRate = 0.001
+                const saldoMora = instOverdue.reduce((acc, i) => {
+                  const due = new Date(i.dueDate)
+                  const today = now
+                  const overdueDays = due < today ? Math.max(0, differenceInCalendarDays(today, due)) : 0
+                  const remainingPI = Math.max(0, num(i.principalDue) + num(i.interestDue) - Math.min(num(i.amountPaid), num(i.interestDue)) - Math.max(0, Math.min(num(i.principalDue), num(i.amountPaid) - Math.min(num(i.amountPaid), num(i.interestDue)))))
+                  const fee = remainingPI > 0 ? remainingPI * dailyRate * overdueDays : 0
+                  return acc + Math.max(0, num(i.totalDue) - num(i.amountPaid)) + fee
+                }, 0)
+                // Aging buckets
+                const buckets = { v0_30: 0, v31_60: 0, v61_90: 0, v90p: 0 }
+                for (const i of instOverdue) {
+                  const d = differenceInCalendarDays(now, new Date(i.dueDate))
+                  const rem = Math.max(0, num(i.totalDue) - num(i.amountPaid))
+                  if (d <= 30) buckets.v0_30 += rem
+                  else if (d <= 60) buckets.v31_60 += rem
+                  else if (d <= 90) buckets.v61_90 += rem
+                  else buckets.v90p += rem
+                }
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                    <div className="p-4 border rounded-md"><div className="text-sm text-muted-foreground">Ventas hoy</div><div className="text-2xl font-bold">{currency(totalSalesToday)}</div></div>
+                    <div className="p-4 border rounded-md"><div className="text-sm text-muted-foreground">Ventas mes</div><div className="text-2xl font-bold">{currency(totalSalesMonth)}</div></div>
+                    <div className="p-4 border rounded-md"><div className="text-sm text-muted-foreground">Ticket promedio (mes)</div><div className="text-2xl font-bold">{currency(ticketAvg)}</div></div>
+                    <div className="p-4 border rounded-md"><div className="text-sm text-muted-foreground">Cobranzas hoy</div><div className="text-2xl font-bold">{currency(cobranzasHoy)}</div></div>
+                    <div className="p-4 border rounded-md"><div className="text-sm text-muted-foreground">Cobranzas mes</div><div className="text-2xl font-bold">{currency(cobranzasMes)}</div></div>
+                    <div className="p-4 border rounded-md"><div className="text-sm text-muted-foreground">Saldo en mora (estimado)</div><div className="text-2xl font-bold">{currency(saldoMora)}</div></div>
+                    <div className="p-4 border rounded-md col-span-1 md:col-span-3 xl:col-span-6">
+                      <div className="text-sm text-muted-foreground mb-2">Aging cartera (montos)</div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="p-3 bg-muted rounded"><div className="text-xs">0-30</div><div className="text-lg font-semibold">{currency(buckets.v0_30)}</div></div>
+                        <div className="p-3 bg-muted rounded"><div className="text-xs">31-60</div><div className="text-lg font-semibold">{currency(buckets.v31_60)}</div></div>
+                        <div className="p-3 bg-muted rounded"><div className="text-xs">61-90</div><div className="text-lg font-semibold">{currency(buckets.v61_90)}</div></div>
+                        <div className="p-3 bg-muted rounded"><div className="text-xs">90+</div><div className="text-lg font-semibold">{currency(buckets.v90p)}</div></div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Atajos</CardTitle>
+              <CardDescription>Acciones rápidas</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button onClick={() => setActiveTab('sales')}>Crear venta</Button>
+              <Button variant="secondary" onClick={() => setActiveTab('sales')}>Registrar pago</Button>
+              <Button variant="outline" onClick={() => setActiveTab('cobranzas')}>Cuotas que vencen hoy</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Cobranzas */}
+        <TabsContent value="cobranzas" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Cuotas que vencen hoy</CardTitle>
+              <CardDescription>Prioriza estas gestiones</CardDescription>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Venta</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>#</TableHead>
+                    <TableHead>Venc.</TableHead>
+                    <TableHead>Capital</TableHead>
+                    <TableHead>Interés</TableHead>
+                    <TableHead>Mora</TableHead>
+                    <TableHead>Pagado</TableHead>
+                    <TableHead>Saldo</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {instToday.map((i: any) => {
+                    const due = new Date(i.dueDate)
+                    const total = num(i.totalDue)
+                    const paid = num(i.amountPaid)
+                    const remaining = Math.max(0, total - paid)
+                    const fee = 0
+                    return (
+                      <TableRow key={`t-${i.id}`}>
+                        <TableCell>#{i.saleId}</TableCell>
+                        <TableCell>{i.sale?.client?.name ?? i.sale?.clientId ?? '-'}</TableCell>
+                        <TableCell>{i.number}</TableCell>
+                        <TableCell>{formatDate(due, 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{currency(num(i.principalDue))}</TableCell>
+                        <TableCell>{currency(num(i.interestDue))}</TableCell>
+                        <TableCell>{currency(fee)}</TableCell>
+                        <TableCell>{currency(paid)}</TableCell>
+                        <TableCell className="font-medium">{currency(remaining)}</TableCell>
+                        <TableCell>{i.status}</TableCell>
+                        <TableCell className="space-x-2">
+                          <Button size="sm" onClick={async () => {
+                            const res = await fetch(`/api/sales/${i.saleId}`)
+                            const ok = await handleApiResponse(res)
+                            if (!ok) return
+                            const data = await res!.json()
+                            setScheduleSale(data)
+                            setPayInstallmentId(i.id)
+                            setPayAmount(String(remaining.toFixed(2)))
+                            setPayMethod("CASH")
+                            // Start with no forced installment selection; user can keep automatic
+                            setIsPayOpen(true)
+                          }}>Cobrar</Button>
+                          <Button size="sm" variant="outline" onClick={() => toast({ title: 'Recordatorio enviado' })}>Recordar</Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {instToday.length === 0 && (
+                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">Sin cuotas para hoy</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Cuotas vencidas</CardTitle>
+              <CardDescription>Bandeja de gestión de mora</CardDescription>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Venta</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>#</TableHead>
+                    <TableHead>Venc.</TableHead>
+                    <TableHead>Atraso</TableHead>
+                    <TableHead>Capital</TableHead>
+                    <TableHead>Interés</TableHead>
+                    <TableHead>Mora</TableHead>
+                    <TableHead>Pagado</TableHead>
+                    <TableHead>Saldo</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {instOverdue.map((i: any) => {
+                    const due = new Date(i.dueDate)
+                    const total = num(i.totalDue)
+                    const paid = num(i.amountPaid)
+                    const remaining = Math.max(0, total - paid)
+                    const overdueDays = Math.max(0, differenceInCalendarDays(new Date(), due))
+                    const dailyRate = 0.001
+                    // mora dinámica sobre saldo de capital+interés pendiente
+                    const interestPaidBefore = Math.min(paid, num(i.interestDue))
+                    const principalPaidBefore = Math.max(0, Math.min(num(i.principalDue), paid - interestPaidBefore))
+                    const remainingPI = Math.max(0, (num(i.interestDue) - interestPaidBefore) + (num(i.principalDue) - principalPaidBefore))
+                    const fee = Number((remainingPI * dailyRate * overdueDays).toFixed(2))
+                    return (
+                      <TableRow key={`o-${i.id}`}>
+                        <TableCell>#{i.saleId}</TableCell>
+                        <TableCell>{i.sale?.client?.name ?? i.sale?.clientId ?? '-'}</TableCell>
+                        <TableCell>{i.number}</TableCell>
+                        <TableCell>{formatDate(due, 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{overdueDays} d</TableCell>
+                        <TableCell>{currency(num(i.principalDue))}</TableCell>
+                        <TableCell>{currency(num(i.interestDue))}</TableCell>
+                        <TableCell className="text-red-600 font-semibold">{currency(fee)}</TableCell>
+                        <TableCell>{currency(paid)}</TableCell>
+                        <TableCell className="font-medium">{currency(remaining + fee)}</TableCell>
+                        <TableCell>{i.status}</TableCell>
+                        <TableCell className="space-x-2">
+                          <Button size="sm" onClick={async () => {
+                            const res = await fetch(`/api/sales/${i.saleId}`)
+                            const ok = await handleApiResponse(res)
+                            if (!ok) return
+                            const data = await res!.json()
+                            setScheduleSale(data)
+                            setPayInstallmentId(i.id)
+                            setPayAmount(String((remaining + fee).toFixed(2)))
+                            setPayMethod("CASH")
+                            // Start with no forced installment selection; user can keep automatic
+                            setIsPayOpen(true)
+                          }}>Cobrar</Button>
+                          <Button size="sm" variant="outline" onClick={() => toast({ title: 'Recordatorio enviado' })}>Recordar</Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {instOverdue.length === 0 && (
+                    <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground">No hay vencidas</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="products" className="space-y-6">
           <div className="flex justify-between items-center">
@@ -2152,10 +2428,19 @@ export function AdminPanel() {
                 </div>
                 <div>
                   <Label>Cuota (opcional)</Label>
-                  <Select value={payInstallmentId ? String(payInstallmentId) : ""} onValueChange={(v) => setPayInstallmentId(v ? Number(v) : undefined)}>
+                  <Select
+                    value={payInstallmentId ? String(payInstallmentId) : "__none"}
+                    onValueChange={(v) => {
+                      if (v === "__none") {
+                        setPayInstallmentId(undefined)
+                        return
+                      }
+                      setPayInstallmentId(v ? Number(v) : undefined)
+                    }}
+                  >
                     <SelectTrigger><SelectValue placeholder="Sin asignar (automático)" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sin asignar</SelectItem>
+                      <SelectItem value="__none">Sin asignar</SelectItem>
                       {(scheduleSale?.installments ?? []).map((inst: any) => {
                         const total = Number(inst.totalDue)
                         const paid = Number(inst.amountPaid)
@@ -2174,7 +2459,7 @@ export function AdminPanel() {
                 <Button variant="outline" onClick={() => setIsPayOpen(false)}>Cancelar</Button>
                 <Button
                   onClick={async () => {
-                    const amount = Number(payAmount)
+                    const amount = parseAmount(payAmount)
                     if (!scheduleSale?.id) return
                     if (!Number.isFinite(amount) || amount <= 0) {
                       toast({ title: 'Monto inválido', variant: 'destructive' as any })
