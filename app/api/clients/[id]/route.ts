@@ -6,14 +6,40 @@ import { Prisma } from "@prisma/client"
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = Number(params.id)
+    const { id: idParam } = await params
+    const id = Number(idParam)
     if (!Number.isFinite(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 })
-    const client = await prisma.client.findUnique({ where: { id } })
+    const db: any = prisma as any
+    const client: any = await db.client.findUnique({ 
+      where: { id },
+      include: {
+        sales: {
+          include: {
+            financingMethod: {
+              select: { name: true }
+            },
+            installments: {
+              orderBy: { number: 'asc' }
+            },
+            payments: {
+              orderBy: { date: 'desc' }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    })
     if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    return NextResponse.json(client)
+    
+    // Calculate moraTotal across all sales
+    const moraTotal = (client.sales || []).reduce((acc: number, s: any) => 
+      acc + (s.installments || []).reduce((acc2: number, i: any) => 
+        acc2 + Number(i.feeDue || 0), 0), 0)
+    
+    return NextResponse.json({ ...client, moraTotal: Number(moraTotal.toFixed(2)) })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ error: message }, { status: 500 })
@@ -22,13 +48,14 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies()
     const isAdmin = Boolean(cookieStore.get("admin_session")?.value)
     if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const id = Number(params.id)
+    const { id: idParam } = await params
+    const id = Number(idParam)
     if (!Number.isFinite(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 })
     const Schema = z.object({
       name: z.string().trim().min(1, "El nombre es obligatorio"),
@@ -58,13 +85,14 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const cookieStore = await cookies()
     const isAdmin = Boolean(cookieStore.get("admin_session")?.value)
     if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const id = Number(params.id)
+    const { id: idParam } = await params
+    const id = Number(idParam)
     if (!Number.isFinite(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 })
     await prisma.client.delete({ where: { id } })
     return NextResponse.json({ ok: true })

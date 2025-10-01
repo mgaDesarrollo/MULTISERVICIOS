@@ -47,6 +47,36 @@ interface Client {
   phone?: string
   notes?: string
   createdAt?: string
+  moraTotal?: number
+}
+
+interface ClientWithHistory extends Client {
+  sales?: Array<{
+    id: number
+    subtotal: string | number
+    interest: string | number
+    total: string | number
+    status: string
+    createdAt: string
+    financingMethod?: { name: string }
+    installments?: Array<{
+      id: number
+      number: number
+      dueDate: string
+      totalDue: string | number
+      amountPaid: string | number
+      status: string
+    }>
+    payments?: Array<{
+      id: number
+      amount: string | number
+      method: string
+      date: string
+      appliedPrincipal?: string | number
+      appliedInterest?: string | number
+      appliedFees?: string | number
+    }>
+  }>
 }
 
 interface FinancingMethod {
@@ -72,15 +102,28 @@ interface Sale {
   financingMethod?: FinancingMethod
 }
 
-type PaymentStatus = "pendiente" | "completado" | "fallido"
-interface Payment {
+interface RealPayment {
   id: number
-  client?: string
-  amount: number
-  method?: string
-  status?: PaymentStatus
-  date?: string
-  notes?: string
+  saleId: number
+  installmentId?: number | null
+  amount: string | number
+  method: string
+  date: string
+  reference?: string | null
+  notes?: string | null
+  appliedPrincipal?: string | number
+  appliedInterest?: string | number
+  appliedFees?: string | number
+  sale?: {
+    id: number
+    client?: { id: number; name: string }
+    clientId: number
+  }
+  installment?: {
+    id: number
+    number: number
+    dueDate: string
+  } | null
 }
 
 const initialCategories: Category[] = []
@@ -97,11 +140,11 @@ export function AdminPanel() {
   const [isAddingCategory, setIsAddingCategory] = useState(false)
   // Clients & Payments
   const [clients, setClients] = useState<Client[]>([])
-  const [payments, setPayments] = useState<Payment[]>([])
+  const [realPayments, setRealPayments] = useState<RealPayment[]>([])
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [isAddingClient, setIsAddingClient] = useState(false)
-  const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
-  const [isAddingPayment, setIsAddingPayment] = useState(false)
+  const [clientHistory, setClientHistory] = useState<ClientWithHistory | null>(null)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   // Financing & Sales
   const [financingMethods, setFinancingMethods] = useState<FinancingMethod[]>([])
   const [editingMethod, setEditingMethod] = useState<FinancingMethod | null>(null)
@@ -252,7 +295,7 @@ export function AdminPanel() {
     return Number.isFinite(n) ? n : NaN
   }
 
-  // Fetch Dashboard/Cobranzas
+  // Fetch Dashboard/Cobranzas/Payments
   useEffect(() => {
     const run = async () => {
       if (activeTab === 'dashboard' || activeTab === 'cobranzas') {
@@ -271,6 +314,15 @@ export function AdminPanel() {
           if (pOk) setDashPayments(await pRes!.json())
           if (tOk) setInstToday(await tRes!.json())
           if (oOk) setInstOverdue(await oRes!.json())
+        } catch (e) {
+          console.error(e)
+        }
+      }
+      if (activeTab === 'payments') {
+        try {
+          const res = await fetch('/api/payments')
+          const ok = await handleApiResponse(res)
+          if (ok) setRealPayments(await res!.json())
         } catch (e) {
           console.error(e)
         }
@@ -1905,18 +1957,30 @@ export function AdminPanel() {
                     <TableHead>CUIT</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Teléfono</TableHead>
+                    <TableHead>Mora</TableHead>
                     <TableHead>Creado</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {clients.map((c) => (
+                  {clients.map((c) => {
+                    const hasMora = (c.moraTotal || 0) > 0
+                    return (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell>{c.dni || "—"}</TableCell>
                       <TableCell>{c.cuit || "—"}</TableCell>
                       <TableCell>{c.email || "—"}</TableCell>
                       <TableCell>{c.phone || "—"}</TableCell>
+                      <TableCell>
+                        {hasMora ? (
+                          <Badge variant="destructive" className="font-semibold">
+                            {currency(c.moraTotal || 0)}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "—"}</TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -1926,6 +1990,17 @@ export function AdminPanel() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={async () => {
+                              const res = await fetch(`/api/clients/${c.id}`)
+                              const ok = await handleApiResponse(res)
+                              if (!ok) return
+                              const data = await res!.json()
+                              setClientHistory(data)
+                              setIsHistoryOpen(true)
+                            }}>
+                              <FileText className="w-4 h-4 mr-2" /> Ver historial completo
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => setEditingClient(c)}>
                               <Edit className="w-4 h-4 mr-2" /> Editar
                             </DropdownMenuItem>
@@ -1962,10 +2037,11 @@ export function AdminPanel() {
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                   {clients.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">Sin clientes todavía</TableCell>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground">Sin clientes todavía</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -2100,147 +2176,299 @@ export function AdminPanel() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Client History Dialog */}
+          <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Historial Completo del Cliente</DialogTitle>
+                <DialogDescription>
+                  {clientHistory ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="font-semibold text-lg">{clientHistory.name}</span>
+                      <div className="text-sm text-muted-foreground">
+                        {clientHistory.dni && <span>DNI: {clientHistory.dni} · </span>}
+                        {clientHistory.cuit && <span>CUIT: {clientHistory.cuit} · </span>}
+                        {clientHistory.email && <span>{clientHistory.email} · </span>}
+                        {clientHistory.phone && <span>{clientHistory.phone}</span>}
+                      </div>
+                    </div>
+                  ) : 'Cargando...'}
+                </DialogDescription>
+              </DialogHeader>
+
+              {clientHistory && (
+                <div className="space-y-6">
+                  {/* Resumen */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Resumen</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-3 border rounded-md">
+                          <div className="text-sm text-muted-foreground">Total Ventas</div>
+                          <div className="text-xl font-bold">{(clientHistory.sales || []).length}</div>
+                        </div>
+                        <div className="p-3 border rounded-md">
+                          <div className="text-sm text-muted-foreground">Facturado</div>
+                          <div className="text-xl font-bold">
+                            {currency((clientHistory.sales || []).reduce((acc, s) => acc + num(s.total), 0))}
+                          </div>
+                        </div>
+                        <div className="p-3 border rounded-md">
+                          <div className="text-sm text-muted-foreground">Cobrado</div>
+                          <div className="text-xl font-bold">
+                            {currency((clientHistory.sales || []).reduce((acc, s) => acc + (s.payments || []).reduce((a, p) => a + num(p.amount), 0), 0))}
+                          </div>
+                        </div>
+                        <div className="p-3 border rounded-md">
+                          <div className="text-sm text-muted-foreground">Mora Acumulada</div>
+                          <div className="text-xl font-bold text-red-600">
+                            {currency((clientHistory.sales || []).reduce((acc, s) => acc + (s.installments || []).reduce((a, i) => a + num(i.amountPaid), 0), 0) > 0 ? (clientHistory.moraTotal || 0) : 0)}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Ventas */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Ventas ({(clientHistory.sales || []).length})</h3>
+                    {(clientHistory.sales || []).length === 0 && (
+                      <p className="text-muted-foreground text-center py-8">Sin ventas registradas</p>
+                    )}
+                    {(clientHistory.sales || []).map((sale) => {
+                      const totalPagado = (sale.payments || []).reduce((a, p) => a + num(p.amount), 0)
+                      const totalVenta = num(sale.total)
+                      const saldo = Math.max(0, totalVenta - totalPagado)
+                      const cuotasPendientes = (sale.installments || []).filter(i => i.status !== 'PAID').length
+                      const cuotasVencidas = (sale.installments || []).filter(i => i.status === 'OVERDUE').length
+                      return (
+                        <Card key={sale.id} className="overflow-hidden">
+                          <CardHeader className="pb-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-base">Venta #{sale.id}</CardTitle>
+                                <CardDescription>
+                                  {formatDate(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm')} · {sale.financingMethod?.name || 'N/A'}
+                                </CardDescription>
+                              </div>
+                              <Badge variant={sale.status === 'ACTIVE' ? 'default' : sale.status === 'COMPLETED' ? 'secondary' : 'outline'}>
+                                {sale.status}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {/* Totales de la venta */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Subtotal:</span>
+                                <span className="ml-2 font-semibold">{currency(num(sale.subtotal))}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Interés:</span>
+                                <span className="ml-2 font-semibold">{currency(num(sale.interest))}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Total:</span>
+                                <span className="ml-2 font-semibold">{currency(totalVenta)}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Saldo:</span>
+                                <span className="ml-2 font-semibold text-orange-600">{currency(saldo)}</span>
+                              </div>
+                            </div>
+
+                            {/* Tabs internos para Cuotas y Pagos */}
+                            <Tabs defaultValue="cuotas" className="w-full">
+                              <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="cuotas">
+                                  Cuotas ({(sale.installments || []).length})
+                                  {cuotasVencidas > 0 && (
+                                    <Badge variant="destructive" className="ml-2 text-xs">{cuotasVencidas} vencidas</Badge>
+                                  )}
+                                </TabsTrigger>
+                                <TabsTrigger value="pagos">Pagos ({(sale.payments || []).length})</TabsTrigger>
+                              </TabsList>
+
+                              <TabsContent value="cuotas" className="mt-3">
+                                {(sale.installments || []).length === 0 ? (
+                                  <p className="text-sm text-muted-foreground text-center py-4">Sin cuotas</p>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="w-12">#</TableHead>
+                                          <TableHead>Vencimiento</TableHead>
+                                          <TableHead>Monto</TableHead>
+                                          <TableHead>Pagado</TableHead>
+                                          <TableHead>Saldo</TableHead>
+                                          <TableHead>Estado</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {(sale.installments || []).map((inst) => {
+                                          const totalDue = num(inst.totalDue)
+                                          const paid = num(inst.amountPaid)
+                                          const remaining = Math.max(0, totalDue - paid)
+                                          return (
+                                            <TableRow key={inst.id}>
+                                              <TableCell className="font-mono">{inst.number}</TableCell>
+                                              <TableCell>{formatDate(new Date(inst.dueDate), 'dd/MM/yyyy')}</TableCell>
+                                              <TableCell>{currency(totalDue)}</TableCell>
+                                              <TableCell>{currency(paid)}</TableCell>
+                                              <TableCell className="font-semibold">{currency(remaining)}</TableCell>
+                                              <TableCell>
+                                                <Badge variant={
+                                                  inst.status === 'PAID' ? 'default' :
+                                                  inst.status === 'OVERDUE' ? 'destructive' :
+                                                  inst.status === 'PARTIAL' ? 'secondary' : 'outline'
+                                                }>
+                                                  {inst.status}
+                                                </Badge>
+                                              </TableCell>
+                                            </TableRow>
+                                          )
+                                        })}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                )}
+                              </TabsContent>
+
+                              <TabsContent value="pagos" className="mt-3">
+                                {(sale.payments || []).length === 0 ? (
+                                  <p className="text-sm text-muted-foreground text-center py-4">Sin pagos registrados</p>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead>Fecha</TableHead>
+                                          <TableHead>Monto</TableHead>
+                                          <TableHead>Método</TableHead>
+                                          <TableHead>Capital</TableHead>
+                                          <TableHead>Interés</TableHead>
+                                          <TableHead>Mora</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {(sale.payments || []).map((pay) => (
+                                          <TableRow key={pay.id}>
+                                            <TableCell>{formatDate(new Date(pay.date), 'dd/MM/yyyy HH:mm')}</TableCell>
+                                            <TableCell className="font-semibold">{currency(num(pay.amount))}</TableCell>
+                                            <TableCell>
+                                              <Badge variant="outline">{pay.method}</Badge>
+                                            </TableCell>
+                                            <TableCell>{currency(num(pay.appliedPrincipal))}</TableCell>
+                                            <TableCell>{currency(num(pay.appliedInterest))}</TableCell>
+                                            <TableCell className="text-red-600">{currency(num(pay.appliedFees))}</TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                )}
+                              </TabsContent>
+                            </Tabs>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="outline" onClick={() => setIsHistoryOpen(false)}>
+                  Cerrar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
   </TabsContent>
 
   {/* Payments Tab */}
   <TabsContent value="payments" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Pagos</h2>
-            <Button onClick={() => { setEditingPayment({ id: 0, amount: 0, status: "pendiente", date: new Date().toISOString() }); setIsAddingPayment(true) }}>
-              <Plus className="w-4 h-4 mr-2" /> Registrar Pago
+            <h2 className="text-2xl font-semibold">Historial de Pagos</h2>
+            <Button onClick={() => setActiveTab('sales')}>
+              <Plus className="w-4 h-4 mr-2" /> Registrar Pago (ir a Ventas)
             </Button>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Historial de Pagos</CardTitle>
-              <CardDescription>Controla y gestiona pagos</CardDescription>
+              <CardTitle>Todos los Pagos Registrados</CardTitle>
+              <CardDescription>Historial completo con desglose de aplicación</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Venta</TableHead>
                     <TableHead>Cliente</TableHead>
+                    <TableHead>Cuota</TableHead>
                     <TableHead>Monto</TableHead>
                     <TableHead>Método</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Fecha</TableHead>
+                    <TableHead>Capital</TableHead>
+                    <TableHead>Interés</TableHead>
+                    <TableHead>Mora</TableHead>
+                    <TableHead>Referencia</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payments.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell>{p.client || "—"}</TableCell>
-                      <TableCell>${p.amount?.toFixed ? p.amount.toFixed(2) : p.amount}</TableCell>
-                      <TableCell>{p.method || "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant={p.status === "completado" ? "default" : p.status === "pendiente" ? "secondary" : "destructive"}>{p.status}</Badge>
-                      </TableCell>
-                      <TableCell>{p.date ? new Date(p.date).toLocaleDateString() : "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => { setEditingPayment(p); setIsAddingPayment(false) }}>
-                            <Edit className="w-4 h-4" />
+                  {realPayments.map((p) => {
+                    const amt = num(p.amount)
+                    const principal = num(p.appliedPrincipal)
+                    const interest = num(p.appliedInterest)
+                    const fees = num(p.appliedFees)
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-mono">#{p.id}</TableCell>
+                        <TableCell>{formatDate(new Date(p.date), 'dd/MM/yyyy HH:mm')}</TableCell>
+                        <TableCell className="font-mono">#{p.saleId}</TableCell>
+                        <TableCell>{p.sale?.client?.name || `Cliente #${p.sale?.clientId}` || '—'}</TableCell>
+                        <TableCell>{p.installment ? `Cuota ${p.installment.number}` : 'Auto-asignado'}</TableCell>
+                        <TableCell className="font-semibold">{currency(amt)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{p.method}</Badge>
+                        </TableCell>
+                        <TableCell>{currency(principal)}</TableCell>
+                        <TableCell>{currency(interest)}</TableCell>
+                        <TableCell className="text-red-600">{currency(fees)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{p.reference || p.notes || '—'}</TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline" onClick={async () => {
+                            const res = await fetch(`/api/sales/${p.saleId}`)
+                            const ok = await handleApiResponse(res)
+                            if (!ok) return
+                            const data = await res!.json()
+                            setScheduleSale(data)
+                            setIsScheduleOpen(true)
+                          }}>
+                            <Eye className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => setPayments((prev) => prev.filter((x) => x.id !== p.id))}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {payments.length === 0 && (
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {realPayments.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">Sin pagos registrados</TableCell>
+                      <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                        Sin pagos registrados. Ve a <Button variant="link" className="p-0 h-auto" onClick={() => setActiveTab('sales')}>Gestión de Ventas</Button> o <Button variant="link" className="p-0 h-auto" onClick={() => setActiveTab('cobranzas')}>Cobranzas</Button> para registrar pagos.
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
-
-          {/* Add/Edit Payment Dialog */}
-          <Dialog open={isAddingPayment || (!!editingPayment && !isAddingPayment)} onOpenChange={() => { setEditingPayment(null); setIsAddingPayment(false) }}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{isAddingPayment ? "Registrar Pago" : "Editar Pago"}</DialogTitle>
-                <DialogDescription>Completa la información del pago</DialogDescription>
-              </DialogHeader>
-              {editingPayment && (
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="pay-client">Cliente</Label>
-                    <Input id="pay-client" value={editingPayment.client || ""} onChange={(e) => setEditingPayment({ ...(editingPayment as Payment), client: e.target.value })} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <Label htmlFor="pay-amount">Monto</Label>
-                      <Input id="pay-amount" type="number" min="0" step="0.01" value={String(editingPayment.amount ?? 0)} onChange={(e) => setEditingPayment({ ...(editingPayment as Payment), amount: Number.parseFloat(e.target.value || "0") })} />
-                    </div>
-                    <div>
-                      <Label>Método</Label>
-                      <Select value={editingPayment.method || ""} onValueChange={(v) => setEditingPayment({ ...(editingPayment as Payment), method: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="efectivo">Efectivo</SelectItem>
-                          <SelectItem value="tarjeta">Tarjeta</SelectItem>
-                          <SelectItem value="transferencia">Transferencia</SelectItem>
-                          <SelectItem value="otros">Otros</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Estado</Label>
-                      <Select value={editingPayment.status || "pendiente"} onValueChange={(v) => setEditingPayment({ ...(editingPayment as Payment), status: v as PaymentStatus })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pendiente">Pendiente</SelectItem>
-                          <SelectItem value="completado">Completado</SelectItem>
-                          <SelectItem value="fallido">Fallido</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="pay-date">Fecha</Label>
-                      <Input id="pay-date" type="date" value={editingPayment.date ? new Date(editingPayment.date).toISOString().slice(0,10) : ""} onChange={(e) => setEditingPayment({ ...(editingPayment as Payment), date: new Date(e.target.value).toISOString() })} />
-                    </div>
-                    <div>
-                      <Label htmlFor="pay-notes">Notas</Label>
-                      <Input id="pay-notes" value={editingPayment.notes || ""} onChange={(e) => setEditingPayment({ ...(editingPayment as Payment), notes: e.target.value })} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-2 mt-6">
-                <Button
-                  onClick={() => {
-                    if (!editingPayment) return
-                    if (isAddingPayment) {
-                      const newPayment: Payment = { ...(editingPayment as Payment), id: Date.now() }
-                      setPayments((prev) => [newPayment, ...prev])
-                      setIsAddingPayment(false)
-                      setEditingPayment(null)
-                    } else {
-                      setPayments((prev) => prev.map((x) => (x.id === editingPayment.id ? (editingPayment as Payment) : x)))
-                      setEditingPayment(null)
-                    }
-                  }}
-                >
-                  <Save className="w-4 h-4 mr-2" /> Guardar
-                </Button>
-                <Button variant="outline" onClick={() => { setEditingPayment(null); setIsAddingPayment(false) }}>
-                  <X className="w-4 h-4 mr-2" /> Cancelar
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
 
   {/* Sales Tab */}

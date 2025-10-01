@@ -172,7 +172,32 @@ export async function GET(request: Request) {
       if (end) where.date.lte = new Date(end)
     }
     const db: any = prisma as any
-    const list = await db.payment.findMany({ where, orderBy: { date: 'desc' }, take: 1000 })
+    const list = await db.payment.findMany({ 
+      where, 
+      orderBy: { date: 'desc' }, 
+      take: 1000,
+      include: {
+        sale: {
+          select: {
+            id: true,
+            clientId: true,
+            client: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
+          }
+        },
+        installment: {
+          select: {
+            id: true,
+            number: true,
+            dueDate: true,
+          }
+        }
+      }
+    })
     return NextResponse.json(list)
   } catch (error: any) {
     return NextResponse.json({ error: String(error?.message || error) }, { status: 500 })
