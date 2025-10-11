@@ -169,6 +169,9 @@ export function AdminPanel() {
   const [salesFilterMaxAmount, setSalesFilterMaxAmount] = useState("")
   const [salesFilterDateFrom, setSalesFilterDateFrom] = useState("")
   const [salesFilterDateTo, setSalesFilterDateTo] = useState("")
+  
+  // New Sale Modal - Client Search
+  const [clientSearchTerm, setClientSearchTerm] = useState("")
 
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
@@ -699,6 +702,15 @@ export function AdminPanel() {
     setSalesFilterDateTo("")
   }
 
+  // Filter clients for new sale modal (by name or DNI)
+  const filteredClientsForSale = clients.filter((client) => {
+    if (!clientSearchTerm) return true
+    const term = clientSearchTerm.toLowerCase()
+    const matchesName = client.name?.toLowerCase().includes(term) || false
+    const matchesDni = client.dni?.toLowerCase().includes(term) || false
+    return matchesName || matchesDni
+  })
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
@@ -841,7 +853,7 @@ export function AdminPanel() {
                         <TableCell>#{i.saleId}</TableCell>
                         <TableCell>{i.sale?.client?.name ?? i.sale?.clientId ?? '-'}</TableCell>
                         <TableCell>{i.number}</TableCell>
-                        <TableCell>{formatDate(due, 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{formatDate(due, 'dd-MM-yy')}</TableCell>
                         <TableCell>{currency(num(i.principalDue))}</TableCell>
                         <TableCell>{currency(num(i.interestDue))}</TableCell>
                         <TableCell>{currency(fee)}</TableCell>
@@ -915,7 +927,7 @@ export function AdminPanel() {
                         <TableCell>#{i.saleId}</TableCell>
                         <TableCell>{i.sale?.client?.name ?? i.sale?.clientId ?? '-'}</TableCell>
                         <TableCell>{i.number}</TableCell>
-                        <TableCell>{formatDate(due, 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{formatDate(due, 'dd-MM-yy')}</TableCell>
                         <TableCell>{overdueDays} d</TableCell>
                         <TableCell>{currency(num(i.principalDue))}</TableCell>
                         <TableCell>{currency(num(i.interestDue))}</TableCell>
@@ -1779,43 +1791,105 @@ export function AdminPanel() {
 
               {/* Add Method Dialog */}
               <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
-                <DialogContent>
+                <DialogContent className="max-w-lg">
                   <DialogHeader>
-                    <DialogTitle>Nuevo método</DialogTitle>
-                    <DialogDescription>Define nombre, interés y cuotas</DialogDescription>
+                    <DialogTitle>Nuevo Método de Financiamiento</DialogTitle>
+                    <DialogDescription>Define nombre, interés y cantidad de cuotas</DialogDescription>
                   </DialogHeader>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="md:col-span-2">
-                      <Label>Nombre</Label>
-                      <Input onChange={(e) => setEditingMethod({ id: 0, name: e.target.value, interestRate: 0, installments: 1 })} />
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="new-method-name">Nombre *</Label>
+                      <Input 
+                        id="new-method-name"
+                        placeholder="Ej: 12 cuotas sin interés"
+                        onChange={(e) => setEditingMethod({ id: 0, name: e.target.value, interestRate: 0, installments: 1 })} 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="new-method-interest">Interés (%)</Label>
+                        <Input 
+                          id="new-method-interest"
+                          type="number" 
+                          step="0.01" 
+                          min="0"
+                          placeholder="0.00"
+                          onChange={(e) => setEditingMethod((prev) => ({ 
+                            ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), 
+                            interestRate: Number(e.target.value) / 100 
+                          }))} 
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Ejemplo: 15 para 15%
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="new-method-installments">Cuotas *</Label>
+                        <Input 
+                          id="new-method-installments"
+                          type="number" 
+                          min="1" 
+                          placeholder="12"
+                          onChange={(e) => setEditingMethod((prev) => ({ 
+                            ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), 
+                            installments: Number(e.target.value) 
+                          }))} 
+                        />
+                      </div>
                     </div>
                     <div>
-                      <Label>Interés (%)</Label>
-                      <Input type="number" step="0.01" onChange={(e) => setEditingMethod((prev) => ({ ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), interestRate: Number(e.target.value) / 100 }))} />
+                      <Label htmlFor="new-method-description">Descripción (opcional)</Label>
+                      <Textarea 
+                        id="new-method-description"
+                        rows={3} 
+                        placeholder="Detalles adicionales sobre el método de financiamiento..."
+                        onChange={(e) => setEditingMethod((prev) => ({ 
+                          ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), 
+                          description: e.target.value 
+                        }))} 
+                      />
                     </div>
-                    <div>
-                      <Label>Cuotas</Label>
-                      <Input type="number" min="1" onChange={(e) => setEditingMethod((prev) => ({ ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), installments: Number(e.target.value) }))} />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label>Descripción</Label>
-                      <Textarea rows={3} onChange={(e) => setEditingMethod((prev) => ({ ...(prev || { id: 0, name: '', interestRate: 0, installments: 1 }), description: e.target.value }))} />
-                    </div>
+                    {editingMethod && editingMethod.name && (
+                      <div className="p-3 bg-muted rounded-md">
+                        <div className="text-sm font-medium mb-1">Vista previa:</div>
+                        <div className="font-medium">{editingMethod.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {editingMethod.installments || 1} cuotas · {((editingMethod.interestRate || 0) * 100).toFixed(2)}% interés
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 mt-6">
-                    <Button onClick={async () => {
-                      if (!editingMethod?.name?.trim()) return
-                      const body = { name: editingMethod.name.trim(), description: editingMethod.description, interestRate: editingMethod.interestRate || 0, installments: editingMethod.installments || 1 }
-                      const res = await fetch('/api/financing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-                      const ok = await handleApiResponse(res, { success: 'Método creado' })
-                      if (ok) {
-                        const created = await res!.json()
-                        setFinancingMethods((prev) => [created, ...prev])
-                        setEditingMethod(null)
-                        setIsAddingMethod(false)
-                      }
-                    }}>
-                      <Save className="w-4 h-4 mr-2" /> Guardar
+                    <Button 
+                      onClick={async () => {
+                        if (!editingMethod?.name?.trim()) {
+                          toast({ title: "Error", description: "El nombre es requerido", variant: "destructive" as any })
+                          return
+                        }
+                        const body = { 
+                          name: editingMethod.name.trim(), 
+                          description: editingMethod.description, 
+                          interestRate: editingMethod.interestRate || 0, 
+                          installments: editingMethod.installments || 1 
+                        }
+                        const res = await fetch('/api/financing', { 
+                          method: 'POST', 
+                          headers: { 'Content-Type': 'application/json' }, 
+                          body: JSON.stringify(body) 
+                        })
+                        const ok = await handleApiResponse(res, { success: 'Método de financiamiento creado' })
+                        if (ok) {
+                          const created = await res!.json()
+                          setFinancingMethods((prev) => [created, ...prev])
+                          // Auto-select the newly created method in the sale draft
+                          setSaleDraft((prev) => ({ ...prev, financingMethodId: created.id }))
+                          setEditingMethod(null)
+                          setIsAddingMethod(false)
+                        }
+                      }}
+                      disabled={!editingMethod?.name?.trim()}
+                    >
+                      <Save className="w-4 h-4 mr-2" /> Guardar y usar
                     </Button>
                     <Button variant="outline" onClick={() => { setEditingMethod(null); setIsAddingMethod(false) }}>
                       <X className="w-4 h-4 mr-2" /> Cancelar
@@ -2323,7 +2397,7 @@ export function AdminPanel() {
                               <div>
                                 <CardTitle className="text-base">Venta #{sale.id}</CardTitle>
                                 <CardDescription>
-                                  {formatDate(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm')} · {sale.financingMethod?.name || 'N/A'}
+                                  {formatDate(new Date(sale.createdAt), 'dd-MM-yy HH:mm')} · {sale.financingMethod?.name || 'N/A'}
                                 </CardDescription>
                               </div>
                               <Badge variant={sale.status === 'ACTIVE' ? 'default' : sale.status === 'COMPLETED' ? 'secondary' : 'outline'}>
@@ -2388,7 +2462,7 @@ export function AdminPanel() {
                                           return (
                                             <TableRow key={inst.id}>
                                               <TableCell className="font-mono">{inst.number}</TableCell>
-                                              <TableCell>{formatDate(new Date(inst.dueDate), 'dd/MM/yyyy')}</TableCell>
+                                              <TableCell>{formatDate(new Date(inst.dueDate), 'dd-MM-yy')}</TableCell>
                                               <TableCell>{currency(totalDue)}</TableCell>
                                               <TableCell>{currency(paid)}</TableCell>
                                               <TableCell className="font-semibold">{currency(remaining)}</TableCell>
@@ -2429,7 +2503,7 @@ export function AdminPanel() {
                                       <TableBody>
                                         {(sale.payments || []).map((pay) => (
                                           <TableRow key={pay.id}>
-                                            <TableCell>{formatDate(new Date(pay.date), 'dd/MM/yyyy HH:mm')}</TableCell>
+                                            <TableCell>{formatDate(new Date(pay.date), 'dd-MM-yy HH:mm')}</TableCell>
                                             <TableCell className="font-semibold">{currency(num(pay.amount))}</TableCell>
                                             <TableCell>
                                               <Badge variant="outline">{pay.method}</Badge>
@@ -2503,7 +2577,7 @@ export function AdminPanel() {
                     return (
                       <TableRow key={p.id}>
                         <TableCell className="font-mono">#{p.id}</TableCell>
-                        <TableCell>{formatDate(new Date(p.date), 'dd/MM/yyyy HH:mm')}</TableCell>
+                        <TableCell>{formatDate(new Date(p.date), 'dd-MM-yy HH:mm')}</TableCell>
                         <TableCell className="font-mono">#{p.saleId}</TableCell>
                         <TableCell>{p.sale?.client?.name || `Cliente #${p.sale?.clientId}` || '—'}</TableCell>
                         <TableCell>{p.installment ? `Cuota ${p.installment.number}` : 'Auto-asignado'}</TableCell>
@@ -2547,19 +2621,12 @@ export function AdminPanel() {
   <TabsContent value="sales" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-semibold">Gestión de Ventas</h2>
-            <Button onClick={() => { setIsAddingSale(true); setSaleDraft({ items: [] }) }}>
-              <Plus className="w-4 h-4 mr-2" /> Nueva venta
-            </Button>
           </div>
 
           {/* Filters Card */}
           <Card>
-            <CardHeader>
-              <CardTitle>Filtros de Búsqueda</CardTitle>
-              <CardDescription>Filtra las ventas por diferentes criterios</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <CardContent className="pt-4 pb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 {/* Search */}
                 <div className="lg:col-span-2">
                   <Label htmlFor="sales-search">Buscar (ID o Cliente)</Label>
@@ -2659,7 +2726,7 @@ export function AdminPanel() {
               </div>
 
               {/* Filter Actions */}
-              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="flex items-center justify-between mt-3 pt-3 border-t">
                 <div className="text-sm text-muted-foreground">
                   Mostrando {filteredSales.length} de {sales.length} ventas
                 </div>
@@ -2673,8 +2740,15 @@ export function AdminPanel() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Listado de Ventas</CardTitle>
-              <CardDescription>Incluye cliente, método y totales</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Listado de Ventas</CardTitle>
+                  <CardDescription>Incluye cliente, método y totales</CardDescription>
+                </div>
+                <Button onClick={() => { setIsAddingSale(true); setSaleDraft({ items: [] }) }}>
+                  <Plus className="w-4 h-4 mr-2" /> Nueva venta
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -2695,7 +2769,7 @@ export function AdminPanel() {
                     <TableRow key={s.id}>
                       <TableCell className="font-mono">{s.id}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {s.createdAt ? formatDate(new Date(s.createdAt), 'dd/MM/yyyy') : '—'}
+                        {s.createdAt ? formatDate(new Date(s.createdAt), 'dd-MM-yy') : '—'}
                       </TableCell>
                       <TableCell>{s.client?.name || s.clientId}</TableCell>
                       <TableCell>{s.financingMethod?.name || s.financingMethodId}</TableCell>
@@ -2800,7 +2874,7 @@ export function AdminPanel() {
                       return (
                         <TableRow key={inst.id} className={overdueDays > 0 && remaining > 0 ? 'bg-red-500/5' : ''}>
                           <TableCell className="font-mono">{inst.number}</TableCell>
-                          <TableCell>{formatDate(due, 'dd/MM/yyyy')}</TableCell>
+                          <TableCell>{formatDate(due, 'dd-MM-yy')}</TableCell>
                           <TableCell>${fmt(Number(inst.principalDue))}</TableCell>
                           <TableCell>${fmt(Number(inst.interestDue))}</TableCell>
                           <TableCell className="font-medium">${fmt(totalDue)}</TableCell>
@@ -2880,7 +2954,7 @@ export function AdminPanel() {
                         const remaining = Math.max(0, total - paid)
                         return (
                           <SelectItem key={inst.id} value={String(inst.id)}>
-                            #{inst.number} · Vence {formatDate(new Date(inst.dueDate), 'dd/MM/yyyy')} · Saldo ${remaining.toFixed(2)}
+                            #{inst.number} · Vence {formatDate(new Date(inst.dueDate), 'dd-MM-yy')} · Saldo ${remaining.toFixed(2)}
                           </SelectItem>
                         )
                       })}
@@ -2929,99 +3003,367 @@ export function AdminPanel() {
           </Dialog>
 
           {/* Add Sale Dialog */}
-          <Dialog open={isAddingSale} onOpenChange={setIsAddingSale}>
-            <DialogContent>
+          {/* New Sale Dialog - IMPROVED */}
+          <Dialog open={isAddingSale} onOpenChange={(open) => {
+            setIsAddingSale(open)
+            if (!open) setClientSearchTerm("") // Reset search when closing
+          }}>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Nueva venta</DialogTitle>
-                <DialogDescription>Selecciona cliente, método y productos</DialogDescription>
+                <DialogTitle className="text-2xl">Nueva Venta</DialogTitle>
+                <DialogDescription>Completa los datos para registrar una nueva venta</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <Label>Cliente</Label>
-                    <Select value={saleDraft.clientId ? String(saleDraft.clientId) : ''} onValueChange={(v) => setSaleDraft((prev) => ({ ...prev, clientId: Number(v) }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients.map((c) => (
-                          <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Método de financiamiento</Label>
-                    <Select value={saleDraft.financingMethodId ? String(saleDraft.financingMethodId) : ''} onValueChange={(v) => setSaleDraft((prev) => ({ ...prev, financingMethodId: Number(v) }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {financingMethods.map((m) => (
-                          <SelectItem key={m.id} value={String(m.id)}>{m.name} ({m.installments}x, {(m.interestRate*100).toFixed(0)}%)</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div>
-                  <Label>Productos</Label>
-                  <div className="space-y-2">
-                    {saleDraft.items.map((it, idx) => (
-                      <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
-                        <Select value={String(it.productId)} onValueChange={(v) => setSaleDraft((prev) => ({ ...prev, items: prev.items.map((x, i) => i === idx ? { ...x, productId: Number(v), unitPrice: Number(products.find(p=>p.id===Number(v))?.price || 0) } : x) }))}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Producto" />
+
+              <div className="space-y-6">
+                {/* Cliente y Método - Card */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Información General</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Cliente con búsqueda */}
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="sale-client">Cliente *</Label>
+                        <div className="space-y-2">
+                          <Input
+                            id="sale-client-search"
+                            placeholder="Buscar por nombre o DNI..."
+                            value={clientSearchTerm}
+                            onChange={(e) => setClientSearchTerm(e.target.value)}
+                            className="mb-2"
+                          />
+                          <Select 
+                            value={saleDraft.clientId ? String(saleDraft.clientId) : ''} 
+                            onValueChange={(v) => {
+                              setSaleDraft((prev) => ({ ...prev, clientId: Number(v) }))
+                              setClientSearchTerm("") // Clear search after selection
+                            }}
+                          >
+                            <SelectTrigger id="sale-client">
+                              <SelectValue placeholder="Seleccionar cliente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filteredClientsForSale.length === 0 ? (
+                                <div className="p-2 text-sm text-muted-foreground text-center">
+                                  No se encontraron clientes
+                                </div>
+                              ) : (
+                                filteredClientsForSale.map((c) => (
+                                  <SelectItem key={c.id} value={String(c.id)}>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-medium">{c.name}</span>
+                                      {c.dni && (
+                                        <span className="text-xs text-muted-foreground">DNI: {c.dni}</span>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {saleDraft.clientId && (() => {
+                            const selectedClient = clients.find(c => c.id === saleDraft.clientId)
+                            return selectedClient ? (
+                              <div className="text-sm p-3 bg-muted rounded-md">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-1">Nombre</div>
+                                    <div className="font-medium">{selectedClient.name}</div>
+                                  </div>
+                                  {selectedClient.dni && (
+                                    <div>
+                                      <div className="text-xs text-muted-foreground mb-1">DNI</div>
+                                      <div className="font-medium">{selectedClient.dni}</div>
+                                    </div>
+                                  )}
+                                  {selectedClient.email && (
+                                    <div>
+                                      <div className="text-xs text-muted-foreground mb-1">Email</div>
+                                      <div className="font-medium truncate">{selectedClient.email}</div>
+                                    </div>
+                                  )}
+                                  {selectedClient.phone && (
+                                    <div>
+                                      <div className="text-xs text-muted-foreground mb-1">Teléfono</div>
+                                      <div className="font-medium">{selectedClient.phone}</div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Método de financiamiento */}
+                      <div className="space-y-2 md:col-span-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="sale-method">Método de Financiamiento *</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsAddingMethod(true)}
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Nuevo método
+                          </Button>
+                        </div>
+                        <Select 
+                          value={saleDraft.financingMethodId ? String(saleDraft.financingMethodId) : ''} 
+                          onValueChange={(v) => setSaleDraft((prev) => ({ ...prev, financingMethodId: Number(v) }))}
+                        >
+                          <SelectTrigger id="sale-method">
+                            <SelectValue placeholder="Seleccionar método" />
                           </SelectTrigger>
                           <SelectContent>
-                            {products.map((p) => (
-                              <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                            {financingMethods.map((m) => (
+                              <SelectItem key={m.id} value={String(m.id)}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{m.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {m.installments} cuotas · {(m.interestRate * 100).toFixed(2)}% interés
+                                  </span>
+                                </div>
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <Input type="number" min="1" value={String(it.quantity)} onChange={(e) => setSaleDraft((prev) => ({ ...prev, items: prev.items.map((x, i) => i === idx ? { ...x, quantity: Number(e.target.value) } : x) }))} />
-                        <Input type="number" min="0" step="0.01" value={String(it.unitPrice)} onChange={(e) => setSaleDraft((prev) => ({ ...prev, items: prev.items.map((x, i) => i === idx ? { ...x, unitPrice: Number(e.target.value) } : x) }))} />
-                        <div className="text-sm text-muted-foreground">${(it.quantity * it.unitPrice).toFixed(2)}</div>
-                        <Button variant="destructive" size="sm" onClick={() => setSaleDraft((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}><Trash2 className="w-4 h-4" /></Button>
+                        {saleDraft.financingMethodId && (() => {
+                          const selectedMethod = financingMethods.find(m => m.id === saleDraft.financingMethodId)
+                          return selectedMethod ? (
+                            <div className="text-sm p-2 bg-muted rounded-md">
+                              <div className="font-medium">{selectedMethod.name}</div>
+                              <div className="text-muted-foreground">
+                                {selectedMethod.installments} cuotas · {(selectedMethod.interestRate * 100).toFixed(2)}% interés
+                              </div>
+                              {selectedMethod.description && (
+                                <div className="text-xs text-muted-foreground mt-1">{selectedMethod.description}</div>
+                              )}
+                            </div>
+                          ) : null
+                        })()}
                       </div>
-                    ))}
-                    <Button variant="outline" size="sm" onClick={() => setSaleDraft((prev) => ({ ...prev, items: [...prev.items, { productId: products[0]?.id ?? 0, quantity: 1, unitPrice: Number(products[0]?.price || 0) }] }))}>
-                      <Plus className="w-4 h-4 mr-2" /> Agregar producto
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-4">
-                  {(() => {
-                    const subtotal = saleDraft.items.reduce((a, b) => a + b.unitPrice * b.quantity, 0)
-                    const method = financingMethods.find((m) => m.id === saleDraft.financingMethodId)
-                    const interest = subtotal * (method?.interestRate || 0)
-                    const total = subtotal + interest
-                    return (
-                      <div className="text-right">
-                        <div className="text-sm text-muted-foreground">Subtotal: ${subtotal.toFixed(2)}</div>
-                        <div className="text-sm text-muted-foreground">Interés: ${interest.toFixed(2)}</div>
-                        <div className="text-lg font-semibold">Total: ${total.toFixed(2)}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Productos - Card */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">Productos</CardTitle>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSaleDraft((prev) => ({ 
+                          ...prev, 
+                          items: [...prev.items, { 
+                            productId: products[0]?.id ?? 0, 
+                            quantity: 1, 
+                            unitPrice: Number(products[0]?.price || 0) 
+                          }] 
+                        }))}
+                        disabled={products.length === 0}
+                      >
+                        <Plus className="w-4 h-4 mr-2" /> Agregar producto
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {saleDraft.items.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No hay productos agregados. Click en "Agregar producto" para comenzar.
                       </div>
-                    )
-                  })()}
-                </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* Headers */}
+                        <div className="grid grid-cols-12 gap-2 text-sm font-medium text-muted-foreground px-1">
+                          <div className="col-span-5">Producto</div>
+                          <div className="col-span-2 text-center">Cantidad</div>
+                          <div className="col-span-2 text-center">Precio Unit.</div>
+                          <div className="col-span-2 text-right">Subtotal</div>
+                          <div className="col-span-1"></div>
+                        </div>
+                        
+                        {/* Items */}
+                        {saleDraft.items.map((it, idx) => (
+                          <div key={idx} className="grid grid-cols-12 gap-2 items-center p-2 border rounded-lg hover:bg-muted/50 transition-colors">
+                            {/* Producto Select */}
+                            <div className="col-span-5">
+                              <Select 
+                                value={String(it.productId)} 
+                                onValueChange={(v) => setSaleDraft((prev) => ({ 
+                                  ...prev, 
+                                  items: prev.items.map((x, i) => i === idx ? { 
+                                    ...x, 
+                                    productId: Number(v), 
+                                    unitPrice: Number(products.find(p => p.id === Number(v))?.price || 0) 
+                                  } : x) 
+                                }))}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Producto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {products.map((p) => (
+                                    <SelectItem key={p.id} value={String(p.id)}>
+                                      <div className="flex flex-col">
+                                        <span>{p.name}</span>
+                                        <span className="text-xs text-muted-foreground">${typeof p.price === 'number' ? p.price.toFixed(2) : p.price}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {/* Cantidad */}
+                            <div className="col-span-2">
+                              <Input 
+                                type="number" 
+                                min="1" 
+                                value={String(it.quantity)} 
+                                onChange={(e) => setSaleDraft((prev) => ({ 
+                                  ...prev, 
+                                  items: prev.items.map((x, i) => i === idx ? { 
+                                    ...x, 
+                                    quantity: Number(e.target.value) || 1 
+                                  } : x) 
+                                }))} 
+                                className="h-9 text-center"
+                              />
+                            </div>
+                            
+                            {/* Precio Unitario */}
+                            <div className="col-span-2">
+                              <Input 
+                                type="number" 
+                                min="0" 
+                                step="0.01" 
+                                value={String(it.unitPrice)} 
+                                onChange={(e) => setSaleDraft((prev) => ({ 
+                                  ...prev, 
+                                  items: prev.items.map((x, i) => i === idx ? { 
+                                    ...x, 
+                                    unitPrice: Number(e.target.value) || 0 
+                                  } : x) 
+                                }))} 
+                                className="h-9 text-center"
+                              />
+                            </div>
+                            
+                            {/* Subtotal */}
+                            <div className="col-span-2 text-right font-medium">
+                              ${(it.quantity * it.unitPrice).toFixed(2)}
+                            </div>
+                            
+                            {/* Delete Button */}
+                            <div className="col-span-1 flex justify-end">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => setSaleDraft((prev) => ({ 
+                                  ...prev, 
+                                  items: prev.items.filter((_, i) => i !== idx) 
+                                }))}
+                                className="h-9 w-9 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Resumen - Card */}
+                <Card className="bg-muted/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Resumen de la Venta</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const subtotal = saleDraft.items.reduce((a, b) => a + b.unitPrice * b.quantity, 0)
+                      const method = financingMethods.find((m) => m.id === saleDraft.financingMethodId)
+                      const interest = subtotal * (method?.interestRate || 0)
+                      const total = subtotal + interest
+                      const installmentAmount = method ? total / method.installments : 0
+
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center text-lg">
+                            <span className="text-muted-foreground">Subtotal:</span>
+                            <span className="font-medium">${subtotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-lg">
+                            <span className="text-muted-foreground">
+                              Interés {method ? `(${(method.interestRate * 100).toFixed(2)}%)` : ''}:
+                            </span>
+                            <span className="font-medium">${interest.toFixed(2)}</span>
+                          </div>
+                          <div className="border-t pt-3 flex justify-between items-center text-2xl">
+                            <span className="font-semibold">Total:</span>
+                            <span className="font-bold text-primary">${total.toFixed(2)}</span>
+                          </div>
+                          {method && (
+                            <div className="flex justify-between items-center text-sm pt-2 border-t">
+                              <span className="text-muted-foreground">
+                                {method.installments} cuotas de:
+                              </span>
+                              <span className="font-semibold">${installmentAmount.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </CardContent>
+                </Card>
               </div>
-              <div className="flex gap-2 mt-6">
-                <Button onClick={async () => {
-                  if (!saleDraft.clientId || !saleDraft.financingMethodId || saleDraft.items.length === 0) return
-                  const body = { clientId: saleDraft.clientId, financingMethodId: saleDraft.financingMethodId, items: saleDraft.items }
-                  const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-                  const ok = await handleApiResponse(res, { success: 'Venta creada' })
-                  if (ok) {
-                    const created = await res!.json()
-                    setSales((prev) => [created, ...prev])
-                    setIsAddingSale(false)
-                  }
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-end pt-4 border-t">
+                <Button variant="outline" onClick={() => {
+                  setIsAddingSale(false)
+                  setClientSearchTerm("")
                 }}>
-                  <Save className="w-4 h-4 mr-2" /> Guardar venta
-                </Button>
-                <Button variant="outline" onClick={() => setIsAddingSale(false)}>
                   <X className="w-4 h-4 mr-2" /> Cancelar
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    if (!saleDraft.clientId || !saleDraft.financingMethodId || saleDraft.items.length === 0) {
+                      toast({ 
+                        title: "Error", 
+                        description: "Completa todos los campos requeridos y agrega al menos un producto", 
+                        variant: "destructive" as any 
+                      })
+                      return
+                    }
+                    const body = { 
+                      clientId: saleDraft.clientId, 
+                      financingMethodId: saleDraft.financingMethodId, 
+                      items: saleDraft.items 
+                    }
+                    const res = await fetch('/api/sales', { 
+                      method: 'POST', 
+                      headers: { 'Content-Type': 'application/json' }, 
+                      body: JSON.stringify(body) 
+                    })
+                    const ok = await handleApiResponse(res, { success: 'Venta creada exitosamente' })
+                    if (ok) {
+                      const created = await res!.json()
+                      setSales((prev) => [created, ...prev])
+                      setIsAddingSale(false)
+                      setClientSearchTerm("")
+                      setSaleDraft({ items: [] })
+                    }
+                  }}
+                  disabled={!saleDraft.clientId || !saleDraft.financingMethodId || saleDraft.items.length === 0}
+                >
+                  <Save className="w-4 h-4 mr-2" /> Guardar Venta
                 </Button>
               </div>
             </DialogContent>
