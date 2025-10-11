@@ -170,6 +170,15 @@ export function AdminPanel() {
   const [salesFilterDateFrom, setSalesFilterDateFrom] = useState("")
   const [salesFilterDateTo, setSalesFilterDateTo] = useState("")
   
+  // Cobranzas Filters
+  const [cobranzasSearchClient, setCobranzasSearchClient] = useState("")
+  
+  // Payments Filters
+  const [paymentsSearchClient, setPaymentsSearchClient] = useState("")
+  const [paymentsFilterMethod, setPaymentsFilterMethod] = useState<string>("all")
+  const [paymentsFilterDateFrom, setPaymentsFilterDateFrom] = useState("")
+  const [paymentsFilterDateTo, setPaymentsFilterDateTo] = useState("")
+  
   // New Sale Modal - Client Search
   const [clientSearchTerm, setClientSearchTerm] = useState("")
 
@@ -200,6 +209,7 @@ export function AdminPanel() {
   const [dashPayments, setDashPayments] = useState<any[]>([])
   const [instToday, setInstToday] = useState<any[]>([])
   const [instOverdue, setInstOverdue] = useState<any[]>([])
+  const [allInstallments, setAllInstallments] = useState<any[]>([])
 
   // Helpers: clipboard & exports for clients
   const copyToClipboard = async (text: string, label: string) => {
@@ -313,20 +323,23 @@ export function AdminPanel() {
     const run = async () => {
       if (activeTab === 'dashboard' || activeTab === 'cobranzas') {
         try {
-          const [sRes, pRes, tRes, oRes] = await Promise.all([
+          const [sRes, pRes, tRes, oRes, allRes] = await Promise.all([
             fetch('/api/sales'),
             fetch('/api/payments'),
             fetch(`/api/installments?dueOn=${new Date().toISOString()}`),
             fetch('/api/installments?overdueOnly=1'),
+            fetch('/api/installments'), // All installments for "next 7 days"
           ])
           const sOk = await handleApiResponse(sRes)
           const pOk = await handleApiResponse(pRes)
           const tOk = await handleApiResponse(tRes)
           const oOk = await handleApiResponse(oRes)
+          const allOk = await handleApiResponse(allRes)
           if (sOk) setDashSales(await sRes!.json())
           if (pOk) setDashPayments(await pRes!.json())
           if (tOk) setInstToday(await tRes!.json())
           if (oOk) setInstOverdue(await oRes!.json())
+          if (allOk) setAllInstallments(await allRes!.json())
         } catch (e) {
           console.error(e)
         }
@@ -711,6 +724,118 @@ export function AdminPanel() {
     return matchesName || matchesDni
   })
 
+  // ========== COBRANZAS FILTERS & STATS ==========
+  
+  // Filter installments for Cobranzas
+  const filteredInstToday = instToday.filter((i: any) => {
+    if (cobranzasSearchClient) {
+      const term = cobranzasSearchClient.toLowerCase()
+      const clientName = i.sale?.client?.name?.toLowerCase() || ""
+      if (!clientName.includes(term)) return false
+    }
+    return true
+  })
+
+  const filteredInstOverdue = instOverdue.filter((i: any) => {
+    if (cobranzasSearchClient) {
+      const term = cobranzasSearchClient.toLowerCase()
+      const clientName = i.sale?.client?.name?.toLowerCase() || ""
+      if (!clientName.includes(term)) return false
+    }
+    return true
+  })
+
+  // Calculate "Próximos 7 días" (installments due in next 7 days, excluding today)
+  const instNext7Days = allInstallments.filter((i: any) => {
+    if (i.status === "PAID") return false
+    const due = new Date(i.dueDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const next7 = new Date(today)
+    next7.setDate(next7.getDate() + 7)
+    
+    // Filter by client search
+    if (cobranzasSearchClient) {
+      const term = cobranzasSearchClient.toLowerCase()
+      const clientName = i.sale?.client?.name?.toLowerCase() || ""
+      if (!clientName.includes(term)) return false
+    }
+    
+    return due >= tomorrow && due <= next7
+  })
+
+  // Calculate stats for Cobranzas
+  const cobranzasStats = {
+    todayCount: filteredInstToday.length,
+    todayAmount: filteredInstToday.reduce((sum: number, i: any) => {
+      const total = num(i.totalDue)
+      const paid = num(i.amountPaid)
+      return sum + Math.max(0, total - paid)
+    }, 0),
+    overdueCount: filteredInstOverdue.length,
+    overdueAmount: filteredInstOverdue.reduce((sum: number, i: any) => {
+      const total = num(i.totalDue)
+      const paid = num(i.amountPaid)
+      const remaining = Math.max(0, total - paid)
+      const due = new Date(i.dueDate)
+      const overdueDays = Math.max(0, differenceInCalendarDays(new Date(), due))
+      const interestPaidBefore = Math.min(paid, num(i.interestDue))
+      const principalPaidBefore = Math.max(0, Math.min(num(i.principalDue), paid - interestPaidBefore))
+      const remainingPI = Math.max(0, (num(i.interestDue) - interestPaidBefore) + (num(i.principalDue) - principalPaidBefore))
+      const fee = Number((remainingPI * 0.001 * overdueDays).toFixed(2))
+      return sum + remaining + fee
+    }, 0),
+    next7Count: instNext7Days.length,
+    next7Amount: instNext7Days.reduce((sum: number, i: any) => {
+      const total = num(i.totalDue)
+      const paid = num(i.amountPaid)
+      return sum + Math.max(0, total - paid)
+    }, 0)
+  }
+
+  // ========== PAYMENTS FILTERS ==========
+  
+  const filteredPayments = realPayments.filter((payment: any) => {
+    // Client search
+    if (paymentsSearchClient) {
+      const term = paymentsSearchClient.toLowerCase()
+      const clientName = payment.installment?.sale?.client?.name?.toLowerCase() || ""
+      if (!clientName.includes(term)) return false
+    }
+    
+    // Method filter
+    if (paymentsFilterMethod !== "all") {
+      if (payment.method !== paymentsFilterMethod) return false
+    }
+    
+    // Date from filter
+    if (paymentsFilterDateFrom) {
+      const paymentDate = new Date(payment.createdAt)
+      const fromDate = new Date(paymentsFilterDateFrom)
+      fromDate.setHours(0, 0, 0, 0)
+      if (paymentDate < fromDate) return false
+    }
+    
+    // Date to filter
+    if (paymentsFilterDateTo) {
+      const paymentDate = new Date(payment.createdAt)
+      const toDate = new Date(paymentsFilterDateTo)
+      toDate.setHours(23, 59, 59, 999)
+      if (paymentDate > toDate) return false
+    }
+    
+    return true
+  })
+
+  const clearPaymentsFilters = () => {
+    setPaymentsSearchClient("")
+    setPaymentsFilterMethod("all")
+    setPaymentsFilterDateFrom("")
+    setPaymentsFilterDateTo("")
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
@@ -819,6 +944,83 @@ export function AdminPanel() {
 
         {/* Cobranzas */}
         <TabsContent value="cobranzas" className="space-y-6">
+          {/* Stats KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Vencen Hoy</CardDescription>
+                <CardTitle className="text-3xl">{cobranzasStats.todayCount}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Total: <span className="font-semibold text-foreground">{currency(cobranzasStats.todayAmount)}</span>
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Cuotas Vencidas</CardDescription>
+                <CardTitle className="text-3xl text-red-600">{cobranzasStats.overdueCount}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Total + Mora: <span className="font-semibold text-red-600">{currency(cobranzasStats.overdueAmount)}</span>
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Próximos 7 Días</CardDescription>
+                <CardTitle className="text-3xl text-blue-600">{cobranzasStats.next7Count}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Total: <span className="font-semibold text-foreground">{currency(cobranzasStats.next7Amount)}</span>
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Total a Gestionar</CardDescription>
+                <CardTitle className="text-3xl">{cobranzasStats.todayCount + cobranzasStats.overdueCount + cobranzasStats.next7Count}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Monto: <span className="font-semibold text-foreground">{currency(cobranzasStats.todayAmount + cobranzasStats.overdueAmount + cobranzasStats.next7Amount)}</span>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filtros */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <Input
+                  placeholder="Buscar por cliente..."
+                  value={cobranzasSearchClient}
+                  onChange={(e) => setCobranzasSearchClient(e.target.value)}
+                  className="max-w-sm"
+                />
+                {cobranzasSearchClient && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCobranzasSearchClient("")}
+                  >
+                    Limpiar
+                  </Button>
+                )}
+                <p className="text-sm text-muted-foreground ml-auto">
+                  Mostrando: {filteredInstToday.length + filteredInstOverdue.length + instNext7Days.length} cuotas
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Cuotas que vencen hoy</CardTitle>
@@ -842,7 +1044,7 @@ export function AdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {instToday.map((i: any) => {
+                  {filteredInstToday.map((i: any) => {
                     const due = new Date(i.dueDate)
                     const total = num(i.totalDue)
                     const paid = num(i.amountPaid)
@@ -860,7 +1062,7 @@ export function AdminPanel() {
                         <TableCell>{currency(paid)}</TableCell>
                         <TableCell className="font-medium">{currency(remaining)}</TableCell>
                         <TableCell>{i.status}</TableCell>
-                        <TableCell className="space-x-2">
+                        <TableCell>
                           <Button size="sm" onClick={async () => {
                             const res = await fetch(`/api/sales/${i.saleId}`)
                             const ok = await handleApiResponse(res)
@@ -873,12 +1075,11 @@ export function AdminPanel() {
                             // Start with no forced installment selection; user can keep automatic
                             setIsPayOpen(true)
                           }}>Cobrar</Button>
-                          <Button size="sm" variant="outline" onClick={() => toast({ title: 'Recordatorio enviado' })}>Recordar</Button>
                         </TableCell>
                       </TableRow>
                     )
                   })}
-                  {instToday.length === 0 && (
+                  {filteredInstToday.length === 0 && (
                     <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">Sin cuotas para hoy</TableCell></TableRow>
                   )}
                 </TableBody>
@@ -910,7 +1111,7 @@ export function AdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {instOverdue.map((i: any) => {
+                  {filteredInstOverdue.map((i: any) => {
                     const due = new Date(i.dueDate)
                     const total = num(i.totalDue)
                     const paid = num(i.amountPaid)
@@ -935,7 +1136,7 @@ export function AdminPanel() {
                         <TableCell>{currency(paid)}</TableCell>
                         <TableCell className="font-medium">{currency(remaining + fee)}</TableCell>
                         <TableCell>{i.status}</TableCell>
-                        <TableCell className="space-x-2">
+                        <TableCell>
                           <Button size="sm" onClick={async () => {
                             const res = await fetch(`/api/sales/${i.saleId}`)
                             const ok = await handleApiResponse(res)
@@ -948,13 +1149,77 @@ export function AdminPanel() {
                             // Start with no forced installment selection; user can keep automatic
                             setIsPayOpen(true)
                           }}>Cobrar</Button>
-                          <Button size="sm" variant="outline" onClick={() => toast({ title: 'Recordatorio enviado' })}>Recordar</Button>
                         </TableCell>
                       </TableRow>
                     )
                   })}
-                  {instOverdue.length === 0 && (
+                  {filteredInstOverdue.length === 0 && (
                     <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground">No hay vencidas</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Nueva tabla: Próximos 7 días */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Próximos 7 días</CardTitle>
+              <CardDescription>Planifica tus gestiones de cobranza</CardDescription>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Venta</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>#</TableHead>
+                    <TableHead>Venc.</TableHead>
+                    <TableHead>Días</TableHead>
+                    <TableHead>Capital</TableHead>
+                    <TableHead>Interés</TableHead>
+                    <TableHead>Pagado</TableHead>
+                    <TableHead>Saldo</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {instNext7Days.map((i: any) => {
+                    const due = new Date(i.dueDate)
+                    const total = num(i.totalDue)
+                    const paid = num(i.amountPaid)
+                    const remaining = Math.max(0, total - paid)
+                    const today = new Date()
+                    today.setHours(0, 0, 0, 0)
+                    const daysUntil = differenceInCalendarDays(due, today)
+                    return (
+                      <TableRow key={`n7-${i.id}`}>
+                        <TableCell>#{i.saleId}</TableCell>
+                        <TableCell>{i.sale?.client?.name ?? i.sale?.clientId ?? '-'}</TableCell>
+                        <TableCell>{i.number}</TableCell>
+                        <TableCell>{formatDate(due, 'dd-MM-yy')}</TableCell>
+                        <TableCell className="text-blue-600 font-medium">en {daysUntil} d</TableCell>
+                        <TableCell>{currency(num(i.principalDue))}</TableCell>
+                        <TableCell>{currency(num(i.interestDue))}</TableCell>
+                        <TableCell>{currency(paid)}</TableCell>
+                        <TableCell className="font-medium">{currency(remaining)}</TableCell>
+                        <TableCell>{i.status}</TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline" onClick={async () => {
+                            const res = await fetch(`/api/sales/${i.saleId}`)
+                            const ok = await handleApiResponse(res)
+                            if (!ok) return
+                            const data = await res!.json()
+                            setScheduleSale(data)
+                            setIsScheduleOpen(true)
+                          }}>Ver</Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {instNext7Days.length === 0 && (
+                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">No hay cuotas en los próximos 7 días</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -2538,12 +2803,54 @@ export function AdminPanel() {
 
   {/* Payments Tab */}
   <TabsContent value="payments" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Historial de Pagos</h2>
-            <Button onClick={() => setActiveTab('sales')}>
-              <Plus className="w-4 h-4 mr-2" /> Registrar Pago (ir a Ventas)
-            </Button>
-          </div>
+          <h2 className="text-2xl font-semibold">Historial de Pagos</h2>
+
+          {/* Filtros */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <Input
+                  placeholder="Buscar por cliente..."
+                  value={paymentsSearchClient}
+                  onChange={(e) => setPaymentsSearchClient(e.target.value)}
+                />
+                <Select value={paymentsFilterMethod} onValueChange={setPaymentsFilterMethod}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Método de pago" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los métodos</SelectItem>
+                    <SelectItem value="CASH">Efectivo</SelectItem>
+                    <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                    <SelectItem value="CHECK">Cheque</SelectItem>
+                    <SelectItem value="OTHER">Otro</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="date"
+                  placeholder="Desde"
+                  value={paymentsFilterDateFrom}
+                  onChange={(e) => setPaymentsFilterDateFrom(e.target.value)}
+                />
+                <Input
+                  type="date"
+                  placeholder="Hasta"
+                  value={paymentsFilterDateTo}
+                  onChange={(e) => setPaymentsFilterDateTo(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando {filteredPayments.length} de {realPayments.length} pagos
+                </p>
+                {(paymentsSearchClient || paymentsFilterMethod !== "all" || paymentsFilterDateFrom || paymentsFilterDateTo) && (
+                  <Button variant="ghost" size="sm" onClick={clearPaymentsFilters}>
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
@@ -2569,7 +2876,7 @@ export function AdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {realPayments.map((p) => {
+                  {filteredPayments.map((p) => {
                     const amt = num(p.amount)
                     const principal = num(p.appliedPrincipal)
                     const interest = num(p.appliedInterest)
@@ -2604,10 +2911,17 @@ export function AdminPanel() {
                       </TableRow>
                     )
                   })}
+                  {filteredPayments.length === 0 && realPayments.length > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                        No hay pagos que coincidan con los filtros aplicados.
+                      </TableCell>
+                    </TableRow>
+                  )}
                   {realPayments.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
-                        Sin pagos registrados. Ve a <Button variant="link" className="p-0 h-auto" onClick={() => setActiveTab('sales')}>Gestión de Ventas</Button> o <Button variant="link" className="p-0 h-auto" onClick={() => setActiveTab('cobranzas')}>Cobranzas</Button> para registrar pagos.
+                        Sin pagos registrados.
                       </TableCell>
                     </TableRow>
                   )}
