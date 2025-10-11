@@ -160,6 +160,16 @@ export function AdminPanel() {
   const [payMethod, setPayMethod] = useState<string>("CASH")
   const [payInstallmentId, setPayInstallmentId] = useState<number | undefined>(undefined)
 
+  // Sales Filters
+  const [salesSearchTerm, setSalesSearchTerm] = useState("")
+  const [salesFilterClient, setSalesFilterClient] = useState<string>("all")
+  const [salesFilterMethod, setSalesFilterMethod] = useState<string>("all")
+  const [salesFilterStatus, setSalesFilterStatus] = useState<string>("all")
+  const [salesFilterMinAmount, setSalesFilterMinAmount] = useState("")
+  const [salesFilterMaxAmount, setSalesFilterMaxAmount] = useState("")
+  const [salesFilterDateFrom, setSalesFilterDateFrom] = useState("")
+  const [salesFilterDateTo, setSalesFilterDateTo] = useState("")
+
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [newExtraImageFiles, setNewExtraImageFiles] = useState<File[]>([])
@@ -626,6 +636,68 @@ export function AdminPanel() {
       }
     })()
   }, [])
+
+  // Filter sales based on all filter criteria
+  const filteredSales = sales.filter((sale) => {
+    // Search term (ID or client name)
+    if (salesSearchTerm) {
+      const term = salesSearchTerm.toLowerCase()
+      const matchesId = String(sale.id).includes(term)
+      const matchesClient = sale.client?.name?.toLowerCase().includes(term) || false
+      if (!matchesId && !matchesClient) return false
+    }
+
+    // Client filter
+    if (salesFilterClient !== "all" && String(sale.clientId) !== salesFilterClient) {
+      return false
+    }
+
+    // Financing method filter
+    if (salesFilterMethod !== "all" && String(sale.financingMethodId) !== salesFilterMethod) {
+      return false
+    }
+
+    // Amount range filter
+    const total = typeof sale.total === 'number' ? sale.total : parseFloat(String(sale.total))
+    if (salesFilterMinAmount && total < parseFloat(salesFilterMinAmount)) {
+      return false
+    }
+    if (salesFilterMaxAmount && total > parseFloat(salesFilterMaxAmount)) {
+      return false
+    }
+
+    // Date range filter
+    if (sale.createdAt) {
+      const saleDate = new Date(sale.createdAt)
+      if (salesFilterDateFrom) {
+        const fromDate = new Date(salesFilterDateFrom)
+        if (saleDate < fromDate) return false
+      }
+      if (salesFilterDateTo) {
+        const toDate = new Date(salesFilterDateTo)
+        toDate.setHours(23, 59, 59, 999) // Include full day
+        if (saleDate > toDate) return false
+      }
+    }
+
+    // Status filter (requires checking installments - will be "all" for now since we don't have installments loaded)
+    // This would require fetching installment data or including it in the sales list
+    // For now, we'll skip complex status filtering unless installments are included
+
+    return true
+  })
+
+  // Clear all sales filters
+  const clearSalesFilters = () => {
+    setSalesSearchTerm("")
+    setSalesFilterClient("all")
+    setSalesFilterMethod("all")
+    setSalesFilterStatus("all")
+    setSalesFilterMinAmount("")
+    setSalesFilterMaxAmount("")
+    setSalesFilterDateFrom("")
+    setSalesFilterDateTo("")
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -2480,6 +2552,125 @@ export function AdminPanel() {
             </Button>
           </div>
 
+          {/* Filters Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Filtros de Búsqueda</CardTitle>
+              <CardDescription>Filtra las ventas por diferentes criterios</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Search */}
+                <div className="lg:col-span-2">
+                  <Label htmlFor="sales-search">Buscar (ID o Cliente)</Label>
+                  <Input
+                    id="sales-search"
+                    placeholder="Buscar por ID o nombre de cliente..."
+                    value={salesSearchTerm}
+                    onChange={(e) => setSalesSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                {/* Client Filter */}
+                <div>
+                  <Label htmlFor="sales-filter-client">Cliente</Label>
+                  <Select value={salesFilterClient} onValueChange={setSalesFilterClient}>
+                    <SelectTrigger id="sales-filter-client">
+                      <SelectValue placeholder="Todos los clientes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los clientes</SelectItem>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Financing Method Filter */}
+                <div>
+                  <Label htmlFor="sales-filter-method">Método de Financiamiento</Label>
+                  <Select value={salesFilterMethod} onValueChange={setSalesFilterMethod}>
+                    <SelectTrigger id="sales-filter-method">
+                      <SelectValue placeholder="Todos los métodos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los métodos</SelectItem>
+                      {financingMethods.map((m) => (
+                        <SelectItem key={m.id} value={String(m.id)}>
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Date From */}
+                <div>
+                  <Label htmlFor="sales-date-from">Fecha desde</Label>
+                  <Input
+                    id="sales-date-from"
+                    type="date"
+                    value={salesFilterDateFrom}
+                    onChange={(e) => setSalesFilterDateFrom(e.target.value)}
+                  />
+                </div>
+
+                {/* Date To */}
+                <div>
+                  <Label htmlFor="sales-date-to">Fecha hasta</Label>
+                  <Input
+                    id="sales-date-to"
+                    type="date"
+                    value={salesFilterDateTo}
+                    onChange={(e) => setSalesFilterDateTo(e.target.value)}
+                  />
+                </div>
+
+                {/* Min Amount */}
+                <div>
+                  <Label htmlFor="sales-min-amount">Monto mínimo</Label>
+                  <Input
+                    id="sales-min-amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={salesFilterMinAmount}
+                    onChange={(e) => setSalesFilterMinAmount(e.target.value)}
+                  />
+                </div>
+
+                {/* Max Amount */}
+                <div>
+                  <Label htmlFor="sales-max-amount">Monto máximo</Label>
+                  <Input
+                    id="sales-max-amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={salesFilterMaxAmount}
+                    onChange={(e) => setSalesFilterMaxAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Filter Actions */}
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {filteredSales.length} de {sales.length} ventas
+                </div>
+                <Button variant="outline" size="sm" onClick={clearSalesFilters}>
+                  <X className="w-4 h-4 mr-2" />
+                  Limpiar filtros
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Listado de Ventas</CardTitle>
@@ -2490,6 +2681,7 @@ export function AdminPanel() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
+                    <TableHead>Fecha</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Método</TableHead>
                     <TableHead>Subtotal</TableHead>
@@ -2499,9 +2691,12 @@ export function AdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sales.map((s) => (
+                  {filteredSales.map((s) => (
                     <TableRow key={s.id}>
                       <TableCell className="font-mono">{s.id}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {s.createdAt ? formatDate(new Date(s.createdAt), 'dd/MM/yyyy') : '—'}
+                      </TableCell>
                       <TableCell>{s.client?.name || s.clientId}</TableCell>
                       <TableCell>{s.financingMethod?.name || s.financingMethodId}</TableCell>
                       <TableCell>${typeof s.subtotal === 'number' ? s.subtotal.toFixed(2) : s.subtotal}</TableCell>
@@ -2542,9 +2737,19 @@ export function AdminPanel() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {sales.length === 0 && (
+                  {filteredSales.length === 0 && sales.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">Sin ventas</TableCell>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">Sin ventas</TableCell>
+                    </TableRow>
+                  )}
+                  {filteredSales.length === 0 && sales.length > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        No se encontraron ventas con los filtros aplicados. 
+                        <Button variant="link" className="p-0 ml-1" onClick={clearSalesFilters}>
+                          Limpiar filtros
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
