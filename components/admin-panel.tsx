@@ -653,6 +653,11 @@ export function AdminPanel() {
     })()
   }, [])
 
+  // Debug: Monitor isPayOpen state
+  useEffect(() => {
+    console.log('🟢 isPayOpen state changed to:', isPayOpen)
+  }, [isPayOpen])
+
   // Filter sales based on all filter criteria
   const filteredSales = sales.filter((sale) => {
     // Search term (ID or client name)
@@ -745,16 +750,19 @@ export function AdminPanel() {
     return true
   })
 
-  // Calculate "Próximos 7 días" (installments due in next 7 days, excluding today)
+  // Calculate "Próximos 7 días" (installments due in next 7 days, excluding today and overdue)
   const instNext7Days = allInstallments.filter((i: any) => {
     if (i.status === "PAID") return false
+    
     const due = new Date(i.dueDate)
+    due.setHours(0, 0, 0, 0)
+    
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const next7 = new Date(today)
-    next7.setDate(next7.getDate() + 7)
+    
+    // Must be in the future (not today, not overdue)
+    const daysUntilDue = differenceInCalendarDays(due, today)
+    if (daysUntilDue < 1 || daysUntilDue > 7) return false
     
     // Filter by client search
     if (cobranzasSearchClient) {
@@ -763,7 +771,14 @@ export function AdminPanel() {
       if (!clientName.includes(term)) return false
     }
     
-    return due >= tomorrow && due <= next7
+    return true
+  })
+
+  // Sort by due date (closest first)
+  const sortedInstNext7Days = [...instNext7Days].sort((a: any, b: any) => {
+    const dueA = new Date(a.dueDate).getTime()
+    const dueB = new Date(b.dueDate).getTime()
+    return dueA - dueB
   })
 
   // Calculate stats for Cobranzas
@@ -787,8 +802,8 @@ export function AdminPanel() {
       const fee = Number((remainingPI * 0.001 * overdueDays).toFixed(2))
       return sum + remaining + fee
     }, 0),
-    next7Count: instNext7Days.length,
-    next7Amount: instNext7Days.reduce((sum: number, i: any) => {
+    next7Count: sortedInstNext7Days.length,
+    next7Amount: sortedInstNext7Days.reduce((sum: number, i: any) => {
       const total = num(i.totalDue)
       const paid = num(i.amountPaid)
       return sum + Math.max(0, total - paid)
@@ -1015,7 +1030,7 @@ export function AdminPanel() {
                   </Button>
                 )}
                 <p className="text-sm text-muted-foreground ml-auto">
-                  Mostrando: {filteredInstToday.length + filteredInstOverdue.length + instNext7Days.length} cuotas
+                  Mostrando: {filteredInstToday.length + filteredInstOverdue.length + sortedInstNext7Days.length} cuotas
                 </p>
               </div>
             </CardContent>
@@ -1064,16 +1079,33 @@ export function AdminPanel() {
                         <TableCell>{i.status}</TableCell>
                         <TableCell>
                           <Button size="sm" onClick={async () => {
-                            const res = await fetch(`/api/sales/${i.saleId}`)
-                            const ok = await handleApiResponse(res)
-                            if (!ok) return
-                            const data = await res!.json()
-                            setScheduleSale(data)
-                            setPayInstallmentId(i.id)
-                            setPayAmount(String(remaining.toFixed(2)))
-                            setPayMethod("CASH")
-                            // Start with no forced installment selection; user can keep automatic
-                            setIsPayOpen(true)
+                            try {
+                              console.log('🔵 [1] Click en Cobrar')
+                              setIsScheduleOpen(false)
+                              const res = await fetch(`/api/sales/${i.saleId}`)
+                              console.log('🔵 [2] Fetch response:', res.status)
+                              const ok = await handleApiResponse(res)
+                              if (!ok) {
+                                console.log('❌ [3] handleApiResponse failed')
+                                return
+                              }
+                              const data = await res!.json()
+                              console.log('🔵 [4] Data loaded:', data.id)
+                              setScheduleSale(data)
+                              setPayInstallmentId(i.id)
+                              setPayAmount(String(remaining.toFixed(2)))
+                              setPayMethod("CASH")
+                              console.log('🔵 [5] About to setIsPayOpen(true)')
+                              setIsPayOpen(true)
+                              console.log('🔵 [6] setIsPayOpen(true) executed')
+                            } catch (error) {
+                              console.error('Error in Cobrar button:', error)
+                              toast({ 
+                                title: "Error", 
+                                description: "No se pudo cargar la información de la venta",
+                                variant: "destructive" as any
+                              })
+                            }
                           }}>Cobrar</Button>
                         </TableCell>
                       </TableRow>
@@ -1138,16 +1170,25 @@ export function AdminPanel() {
                         <TableCell>{i.status}</TableCell>
                         <TableCell>
                           <Button size="sm" onClick={async () => {
-                            const res = await fetch(`/api/sales/${i.saleId}`)
-                            const ok = await handleApiResponse(res)
-                            if (!ok) return
-                            const data = await res!.json()
-                            setScheduleSale(data)
-                            setPayInstallmentId(i.id)
-                            setPayAmount(String((remaining + fee).toFixed(2)))
-                            setPayMethod("CASH")
-                            // Start with no forced installment selection; user can keep automatic
-                            setIsPayOpen(true)
+                            try {
+                              setIsScheduleOpen(false)
+                              const res = await fetch(`/api/sales/${i.saleId}`)
+                              const ok = await handleApiResponse(res)
+                              if (!ok) return
+                              const data = await res!.json()
+                              setScheduleSale(data)
+                              setPayInstallmentId(i.id)
+                              setPayAmount(String((remaining + fee).toFixed(2)))
+                              setPayMethod("CASH")
+                              setIsPayOpen(true)
+                            } catch (error) {
+                              console.error('Error in Cobrar button:', error)
+                              toast({ 
+                                title: "Error", 
+                                description: "No se pudo cargar la información de la venta",
+                                variant: "destructive" as any
+                              })
+                            }
                           }}>Cobrar</Button>
                         </TableCell>
                       </TableRow>
@@ -1185,7 +1226,7 @@ export function AdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {instNext7Days.map((i: any) => {
+                  {sortedInstNext7Days.map((i: any) => {
                     const due = new Date(i.dueDate)
                     const total = num(i.totalDue)
                     const paid = num(i.amountPaid)
@@ -1218,7 +1259,7 @@ export function AdminPanel() {
                       </TableRow>
                     )
                   })}
-                  {instNext7Days.length === 0 && (
+                  {sortedInstNext7Days.length === 0 && (
                     <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">No hay cuotas en los próximos 7 días</TableCell></TableRow>
                   )}
                 </TableBody>
@@ -3144,9 +3185,12 @@ export function AdminPanel() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Schedule Dialog */}
-          <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+        {/* ========== ALL DIALOGS (OUTSIDE TabsContent) ========== */}
+        
+        {/* Schedule Dialog */}
+        <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
             <DialogContent className="max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Cronograma de cuotas</DialogTitle>
@@ -3216,8 +3260,12 @@ export function AdminPanel() {
           </Dialog>
 
           {/* Payment Dialog */}
-          <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
+          <Dialog open={isPayOpen} onOpenChange={(open) => {
+            console.log('🟣 Payment Dialog onOpenChange called with:', open)
+            setIsPayOpen(open)
+          }}>
             <DialogContent className="max-w-md">
+              {console.log('🟣 Payment Dialog DialogContent rendering')}
               <DialogHeader>
                 <DialogTitle>Registrar pago</DialogTitle>
                 <DialogDescription>
@@ -3682,7 +3730,7 @@ export function AdminPanel() {
               </div>
             </DialogContent>
           </Dialog>
-  </TabsContent>
+
       </Tabs>
     </div>
   )
