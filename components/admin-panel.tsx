@@ -3264,8 +3264,7 @@ export function AdminPanel() {
             console.log('🟣 Payment Dialog onOpenChange called with:', open)
             setIsPayOpen(open)
           }}>
-            <DialogContent className="max-w-md">
-              {console.log('🟣 Payment Dialog DialogContent rendering')}
+            <DialogContent className="max-w-md" onOpenAutoFocus={() => console.log('🟣 Dialog auto-focused')}>
               <DialogHeader>
                 <DialogTitle>Registrar pago</DialogTitle>
                 <DialogDescription>
@@ -3519,14 +3518,30 @@ export function AdminPanel() {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => setSaleDraft((prev) => ({ 
-                          ...prev, 
-                          items: [...prev.items, { 
-                            productId: products[0]?.id ?? 0, 
-                            quantity: 1, 
-                            unitPrice: Number(products[0]?.price || 0) 
-                          }] 
-                        }))}
+                        onClick={() => {
+                          console.log('🛒 Agregar producto clicked')
+                          console.log('🛒 Products array length:', products.length)
+                          console.log('🛒 First product:', products[0])
+                          
+                          if (products.length === 0) {
+                            toast({ 
+                              title: "Error", 
+                              description: "No hay productos disponibles. Crea productos primero.",
+                              variant: "destructive" as any
+                            })
+                            return
+                          }
+                          
+                          setSaleDraft((prev) => ({ 
+                            ...prev, 
+                            items: [...prev.items, { 
+                              productId: products[0].id, 
+                              quantity: 1, 
+                              unitPrice: Number(products[0].price || 0) 
+                            }] 
+                          }))
+                          console.log('🛒 Item added to cart')
+                        }}
                         disabled={products.length === 0}
                       >
                         <Plus className="w-4 h-4 mr-2" /> Agregar producto
