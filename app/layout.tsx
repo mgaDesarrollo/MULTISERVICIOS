@@ -26,7 +26,7 @@ const oswald = Oswald({
 })
 
 export const metadata: Metadata = {
-  title: "MULTISERVICIOS - Financiamiento Inteligente para tu Negocio",
+  title: "MULTISERVICIOS",
   description: "Transforma tu negocio con nuestras soluciones de financiamiento personalizadas y ágiles.",
   generator: "v0.app",
 }
