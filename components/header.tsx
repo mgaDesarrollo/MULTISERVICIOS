@@ -2,10 +2,13 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { Menu, X, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { usePathname, useRouter } from "next/navigation"
-import Image from "next/image"
+import { Space_Grotesk } from "next/font/google"
+
+const markFont = Space_Grotesk({ subsets: ["latin"], weight: ["700"] })
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -34,19 +37,18 @@ export function Header() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18 relative">
           <div className="flex-shrink-0">
-            <div 
-              className="flex items-center cursor-pointer hover:opacity-80 transition-opacity" 
+            <button
+              type="button"
               onClick={() => goTo("inicio")}
+              className="group relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-3xl bg-slate-950/85 p-[2px] shadow-[0_12px_30px_-12px_rgba(15,23,42,0.65)] transition-transform duration-300 ease-out hover:scale-105 hover:shadow-[0_20px_46px_-20px_rgba(14,165,233,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-slate-100"
             >
-              <Image
-                src="/logo.png"
-                alt="Multiservicios Logo"
-                width={180}
-                height={60}
-                className="h-14 w-auto"
-                priority
-              />
-            </div>
+              <span className="absolute inset-[1px] rounded-[26px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 dark:from-white dark:via-slate-100 dark:to-white" />
+              <span className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-500 opacity-65 blur-md transition-opacity duration-500 ease-out group-hover:opacity-90" />
+              <span className="absolute -inset-10 animate-[spin_8s_linear_infinite] bg-[conic-gradient(from_120deg_at_50%_50%,rgba(14,165,233,0.25)_0deg,transparent_140deg)]" />
+              <span className={cn("relative text-4xl lowercase leading-none text-white drop-shadow-lg transition-transform duration-500 group-hover:tracking-tight group-hover:[text-shadow:0_12px_30px_rgba(15,23,42,0.55)] dark:text-slate-900", markFont.className)}>
+                m
+              </span>
+            </button>
           </div>
 
           <nav className="hidden md:block flex-1">
