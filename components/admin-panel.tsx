@@ -40,6 +40,20 @@ interface Category {
 const initialCategories: Category[] = []
 const sampleProducts: Product[] = []
 
+interface SiteSettings {
+  phone: string
+  email: string
+  instagram: string
+  facebook: string
+}
+
+const defaultSiteSettings: SiteSettings = {
+  phone: "",
+  email: "",
+  instagram: "",
+  facebook: "",
+}
+
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/x-webp", "image/gif"])
 const SUPPORTED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"]
 
@@ -88,6 +102,8 @@ export function AdminPanel() {
   const [editSpecValue, setEditSpecValue] = useState("")
   const [newFeatureValue, setNewFeatureValue] = useState("")
   const [editFeatureValue, setEditFeatureValue] = useState("")
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings)
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
 
   const handleApiResponse = useCallback(async (res: Response, opts?: { success?: string }) => {
     if (res.status === 401) {
@@ -306,6 +322,31 @@ export function AdminPanel() {
     }
   }
 
+  const handleSaveSiteSettings = async () => {
+    setIsSavingSettings(true)
+    try {
+      const res = await fetch(`/api/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(siteSettings),
+      })
+      const response = await handleApiResponse(res, { success: "Configuración actualizada" })
+      if (!response) return
+      const data = await response.json()
+      setSiteSettings({
+        phone: data?.phone ?? "",
+        email: data?.email ?? "",
+        instagram: data?.instagram ?? "",
+        facebook: data?.facebook ?? "",
+      })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error", description: "No se pudo guardar la configuración", variant: "destructive" as any })
+    } finally {
+      setIsSavingSettings(false)
+    }
+  }
+
   const handleDeleteProduct = async (id: number) => {
     const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
     if (res.ok) setProducts((prev) => prev.filter((p) => p.id !== id))
@@ -383,16 +424,25 @@ export function AdminPanel() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [catsRes, prodRes] = await Promise.all([
+        const [catsRes, prodRes, settingsRes] = await Promise.all([
           fetch("/api/categories"),
           fetch("/api/products"),
+          fetch("/api/settings"),
         ])
         if (!catsRes.ok) await handleApiResponse(catsRes)
         if (!prodRes.ok) await handleApiResponse(prodRes)
+        if (!settingsRes.ok) await handleApiResponse(settingsRes)
         const cats = catsRes.ok ? await catsRes.json() : []
         const prods = prodRes.ok ? await prodRes.json() : []
+        const settings = settingsRes.ok ? await settingsRes.json() : defaultSiteSettings
         setCategories(cats)
         setProducts(prods)
+        setSiteSettings({
+          phone: settings?.phone ?? "",
+          email: settings?.email ?? "",
+          instagram: settings?.instagram ?? "",
+          facebook: settings?.facebook ?? "",
+        })
       } catch (e) {
         console.error(e)
         toast({ title: "Error", description: "No se pudieron cargar los datos", variant: "destructive" as any })
@@ -419,9 +469,10 @@ export function AdminPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="products">Gestión de Productos</TabsTrigger>
           <TabsTrigger value="categories">Gestión de Categorías</TabsTrigger>
+          <TabsTrigger value="settings">Configuración del Sitio</TabsTrigger>
         </TabsList>
         <TabsContent value="products" className="space-y-6">
           <div className="flex justify-between items-center">
@@ -1189,6 +1240,63 @@ export function AdminPanel() {
               )}
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Información del sitio</CardTitle>
+              <CardDescription>
+                Gestiona los datos de contacto y redes que se mostrarán en la página principal.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="settings-phone">Teléfono / WhatsApp</Label>
+                  <Input
+                    id="settings-phone"
+                    value={siteSettings.phone}
+                    onChange={(e) => setSiteSettings((prev) => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Ej: +54 9 11 1234 5678"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="settings-email">Correo electrónico</Label>
+                  <Input
+                    id="settings-email"
+                    type="email"
+                    value={siteSettings.email}
+                    onChange={(e) => setSiteSettings((prev) => ({ ...prev, email: e.target.value }))}
+                    placeholder="Ej: contacto@multiservicios.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="settings-instagram">Instagram</Label>
+                  <Input
+                    id="settings-instagram"
+                    value={siteSettings.instagram}
+                    onChange={(e) => setSiteSettings((prev) => ({ ...prev, instagram: e.target.value }))}
+                    placeholder="https://instagram.com/tuempresa"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="settings-facebook">Facebook</Label>
+                  <Input
+                    id="settings-facebook"
+                    value={siteSettings.facebook}
+                    onChange={(e) => setSiteSettings((prev) => ({ ...prev, facebook: e.target.value }))}
+                    placeholder="https://facebook.com/tuempresa"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={handleSaveSiteSettings} disabled={isSavingSettings}>
+                  {isSavingSettings ? "Guardando..." : "Guardar cambios"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

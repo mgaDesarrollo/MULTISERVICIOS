@@ -10,6 +10,17 @@ async function main() {
     create: { username: "admin", password: "admin" },
   })
 
+  await prisma.siteSetting.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      phone: "+54 9 11 1234 5678",
+      email: "contacto@multiservicios.com",
+      instagram: "https://www.instagram.com/multiservicios",
+      facebook: "https://www.facebook.com/multiservicios",
+    },
+  })
+
   // categories
   const categories = ["cocina", "heladeras", "lavanderia", "tecnologia", "muebles"]
   const createdCats = [] as { id: number; name: string }[]
