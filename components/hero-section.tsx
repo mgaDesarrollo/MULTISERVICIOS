@@ -111,24 +111,7 @@ export function HeroSection() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-3xl mx-auto">
-            {[
-              { icon: Shield, value: '500+', label: 'Negocios Financiados', color: 'from-cyan-400/15 to-blue-500/15 border-cyan-400/30', glow: 'shadow-cyan-500/25', iconColor: 'text-cyan-400' },
-              { icon: Clock, value: '24h', label: 'Aprobación Rápida', color: 'from-violet-400/15 to-fuchsia-500/15 border-violet-400/30', glow: 'shadow-violet-500/25', iconColor: 'text-violet-400' },
-              { icon: Award, value: '15+', label: 'Años de Experiencia', color: 'from-emerald-400/15 to-teal-500/15 border-emerald-400/30', glow: 'shadow-emerald-500/25', iconColor: 'text-emerald-400' },
-            ].map((m, i) => (
-              <div
-                key={i}
-                className={`relative rounded-xl border p-5 bg-gradient-to-br ${m.color} backdrop-blur-sm transition-all duration-300 shadow ${m.glow} hover:shadow-xl hover:-translate-y-1 group`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <m.icon className={`w-6 h-6 ${m.iconColor} drop-shadow`} />
-                </div>
-                <div className="text-3xl font-extrabold tracking-tight text-foreground mb-1">{m.value}</div>
-                <div className="text-xs md:text-sm text-muted-foreground font-medium">{m.label}</div>
-              </div>
-            ))}
-          </div>
+
         </div>
       </div>
     </section>

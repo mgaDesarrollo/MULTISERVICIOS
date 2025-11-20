@@ -2,13 +2,9 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { Menu, X, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { usePathname, useRouter } from "next/navigation"
-import { Space_Grotesk } from "next/font/google"
-
-const markFont = Space_Grotesk({ subsets: ["latin"], weight: ["700"] })
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -39,14 +35,33 @@ export function Header() {
           <div className="flex-shrink-0">
             <button
               type="button"
+              aria-label="Ir al inicio"
               onClick={() => goTo("inicio")}
-              className="group relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-3xl bg-slate-950/85 p-[2px] shadow-[0_12px_30px_-12px_rgba(15,23,42,0.65)] transition-transform duration-300 ease-out hover:scale-105 hover:shadow-[0_20px_46px_-20px_rgba(14,165,233,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-slate-100"
+              className="group flex items-center gap-3 rounded-2xl px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <span className="absolute inset-[1px] rounded-[26px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 dark:from-white dark:via-slate-100 dark:to-white" />
-              <span className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-500 opacity-65 blur-md transition-opacity duration-500 ease-out group-hover:opacity-90" />
-              <span className="absolute -inset-10 animate-[spin_8s_linear_infinite] bg-[conic-gradient(from_120deg_at_50%_50%,rgba(14,165,233,0.25)_0deg,transparent_140deg)]" />
-              <span className={cn("relative text-4xl lowercase leading-none text-white drop-shadow-lg transition-transform duration-500 group-hover:tracking-tight group-hover:[text-shadow:0_12px_30px_rgba(15,23,42,0.55)] dark:text-slate-900", markFont.className)}>
-                m
+              <div className="relative">
+                <div className="relative w-12 h-12 rounded-xl overflow-hidden transition-all duration-500 ease-out">
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 via-purple-500 to-orange-400 animate-pulse" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent animate-ping opacity-75" />
+                  <div className="absolute inset-0 rounded-xl border-2 border-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-border" />
+                  <div className="absolute inset-[3px] rounded-lg bg-black/90 flex items-center justify-center">
+                    <div className="relative text-3xl font-black select-none">
+                      <span className="relative z-10 bg-gradient-to-b from-cyan-300 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-lg">
+                        M
+                      </span>
+                      <span className="absolute inset-0 text-cyan-400 blur-sm opacity-60 animate-pulse">M</span>
+                      <span className="absolute inset-0 text-purple-400 blur-md opacity-40 animate-pulse delay-75">M</span>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/30 to-transparent h-full w-full animate-pulse opacity-60" />
+                  </div>
+                  <div className="absolute top-0 right-0 w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
+                  <div className="absolute bottom-0 left-0 w-2 h-2 bg-purple-500 rounded-full animate-ping delay-150" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse" />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-purple-600/20 to-pink-500/20 rounded-xl blur-xl transition-all duration-500 group-hover:blur-2xl -z-10" />
+              </div>
+              <span className="text-lg font-semibold tracking-tight bg-gradient-to-r from-sky-400 via-purple-400 to-pink-500 bg-clip-text text-transparent drop-shadow-sm">
+                Multiservicios
               </span>
             </button>
           </div>
