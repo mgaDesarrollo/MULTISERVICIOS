@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     // Basic validation
-    const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
+    const allowed = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/x-webp", "image/gif"])
     if (!allowed.has(file.type)) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 415 })
     }
@@ -39,8 +39,10 @@ export async function POST(request: Request) {
     const extFromName = (file.name || "").split(".").pop()?.toLowerCase()
     const mimeToExt: Record<string, string> = {
       "image/jpeg": "jpg",
+      "image/jpg": "jpg",
       "image/png": "png",
       "image/webp": "webp",
+      "image/x-webp": "webp",
       "image/gif": "gif",
     }
     const extension = (extFromName && extFromName.length <= 5 ? extFromName : mimeToExt[file.type]) || "bin"
