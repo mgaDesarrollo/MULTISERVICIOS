@@ -37,7 +37,7 @@ export function HeroSection() {
           {/* Logo principal con nueva paleta */}
           <div className="flex justify-center mb-8">
             <div className="relative">
-              <div className="relative w-20 h-20 rounded-3xl overflow-hidden group/logo transition-all duration-300 ease-out shadow-xl">
+              <div className="relative w-32 h-32 rounded-3xl overflow-hidden group/logo transition-all duration-300 ease-out shadow-xl">
                 {/* Main gradient background */}
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600" />
                 {/* Secondary gradient overlay */}
@@ -46,8 +46,8 @@ export function HeroSection() {
                 <div className="absolute inset-0 rounded-3xl border border-emerald-300/30" />
                 
                 {/* Logo content */}
-                <div className="absolute inset-[3px] rounded-2xl bg-white/95 dark:bg-slate-900/95 flex items-center justify-center backdrop-blur-sm">
-                  <div className="relative text-4xl font-black select-none">
+                <div className="absolute inset-[4px] rounded-2xl bg-white/95 dark:bg-slate-900/95 flex items-center justify-center backdrop-blur-sm">
+                  <div className="relative text-8xl font-black select-none">
                     <span className="relative z-10 bg-gradient-to-br from-emerald-600 via-emerald-700 to-blue-600 bg-clip-text text-transparent drop-shadow-sm">
                       M
                     </span>
@@ -87,9 +87,7 @@ export function HeroSection() {
           </h1>
 
           <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed font-light mb-10">
-            Transforma tu negocio con soluciones de financiamiento
-            <span className="text-indigo-500 dark:text-indigo-400 font-medium"> personalizadas y ágiles</span>,
-            obtené el capital que necesitás para crecer sin fricción.
+            Financiamiento inteligente para tu negocio.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-5 justify-center items-center mb-20">

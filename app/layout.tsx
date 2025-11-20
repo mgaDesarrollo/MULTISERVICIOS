@@ -43,7 +43,7 @@ export default function RootLayout({
       className={`${geist.variable} ${manrope.variable} ${oswald.variable} antialiased`}
     >
       <body className="font-sans">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
       </body>

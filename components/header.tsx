@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Moon, Sun } from "lucide-react"
+import { Menu, X, Moon, Sun, MapPin } from "lucide-react"
 import { useTheme } from "next-themes"
 import { usePathname, useRouter } from "next/navigation"
 
@@ -29,7 +29,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
+    <header className="sticky top-0 z-50 border-b border-border/50 bg-black text-white backdrop-blur-xl supports-[backdrop-filter]:bg-black/90 dark:bg-background/80 dark:text-foreground dark:supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18 relative">
           <div className="flex-shrink-0">
@@ -63,6 +63,10 @@ export function Header() {
               <span className="text-lg font-semibold tracking-tight bg-gradient-to-r from-sky-400 via-purple-400 to-pink-500 bg-clip-text text-transparent drop-shadow-sm">
                 Multiservicios
               </span>
+              <span className="hidden sm:inline-flex items-center gap-1 text-sm font-medium text-white/80 dark:text-muted-foreground">
+                <MapPin className="h-4 w-4" />
+                Córdoba, Argentina
+              </span>
             </button>
           </div>
 
@@ -70,31 +74,31 @@ export function Header() {
             <div className="flex items-center justify-center space-x-8">
               <button
                 onClick={() => goTo("inicio")}
-                className="text-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
+                className="px-3 py-2 text-sm font-medium transition-colors text-white hover:text-secondary dark:text-foreground dark:hover:text-primary"
               >
                 Inicio
               </button>
               <button
                 onClick={() => goTo("productos")}
-                className="text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
+                className="px-3 py-2 text-sm font-medium transition-colors text-white/80 hover:text-secondary dark:text-muted-foreground dark:hover:text-primary"
               >
                 Productos
               </button>
               <button
                 onClick={() => goTo("prestamos")}
-                className="text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
+                className="px-3 py-2 text-sm font-medium transition-colors text-white/80 hover:text-secondary dark:text-muted-foreground dark:hover:text-primary"
               >
                 Préstamos
               </button>
               <button
                 onClick={() => goTo("nosotros")}
-                className="text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
+                className="px-3 py-2 text-sm font-medium transition-colors text-white/80 hover:text-secondary dark:text-muted-foreground dark:hover:text-primary"
               >
                 Nosotros
               </button>
               <button
                 onClick={() => goTo("contacto")}
-                className="text-muted-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
+                className="px-3 py-2 text-sm font-medium transition-colors text-white/80 hover:text-secondary dark:text-muted-foreground dark:hover:text-primary"
               >
                 Contacto
               </button>
@@ -102,7 +106,7 @@ export function Header() {
           </nav>
 
           <div className="hidden md:flex items-center gap-4 w-64 justify-end">
-            <Button variant="ghost" size="sm" onClick={toggleTheme} className="w-9 h-9 p-0">
+            <Button variant="ghost" size="sm" onClick={toggleTheme} className="w-9 h-9 p-0 text-white hover:text-secondary dark:text-foreground dark:hover:text-primary">
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               <span className="sr-only">Toggle theme</span>
@@ -116,7 +120,7 @@ export function Header() {
           </div>
 
           <div className="md:hidden flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={toggleTheme} className="w-9 h-9 p-0">
+            <Button variant="ghost" size="sm" onClick={toggleTheme} className="w-9 h-9 p-0 text-white hover:text-secondary dark:text-foreground dark:hover:text-primary">
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               <span className="sr-only">Toggle theme</span>

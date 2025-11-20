@@ -38,11 +38,21 @@ const categoryIcons: Record<string, any> = {
 
 // Eliminado mock de productos: el catálogo se cargará 100% desde la base de datos
 
+const ALL_CATEGORY_KEY = "all-categories"
+
 export function ProductsSection() {
-  const [activeCategory, setActiveCategory] = useState("")
   // Catálogo dinámico desde la base de datos
   type Catalog = Record<string, { name: string; icon: any; products: any[] }>
-  const [catalog, setCatalog] = useState<Catalog>({} as Catalog)
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY_KEY)
+  const [catalog, setCatalog] = useState<Catalog>(
+    () => ({
+      [ALL_CATEGORY_KEY]: {
+        name: "Todos",
+        icon: Filter,
+        products: [],
+      },
+    })
+  )
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
   const [cart, setCart] = useState<Array<{ product: any; category: string; quantity: number }>>([])
@@ -75,37 +85,48 @@ export function ProductsSection() {
         ])
         if (!Array.isArray(cats) || !Array.isArray(prods) || cancelled) return
 
-        const byId: Record<string, { name: string; icon: any; products: any[] }> = {}
+        const byId: Catalog = {
+          [ALL_CATEGORY_KEY]: {
+            name: "Todos",
+            icon: Filter,
+            products: [],
+          },
+        }
         for (const c of cats) {
-          const slug = String(c.id ?? c.name ?? "").toLowerCase().replace(/\s+/g, "-")
-          const tabKey = String(c.id ?? slug)
+          const slugBase = String(c.id ?? c.name ?? "").toLowerCase().replace(/\s+/g, "-")
+          const slug = slugBase === ALL_CATEGORY_KEY ? `${slugBase}-${c.id ?? "cat"}` : slugBase
           byId[slug] = {
-            name: c.name ?? slug,
-            icon: categoryIcons[slug] ?? Monitor,
+            name: c.name ?? slugBase,
+            icon: categoryIcons[slugBase] ?? Monitor,
             products: [],
           }
         }
-  for (const p of prods) {
-      const slug = String(p.categoryId ?? "otros").toLowerCase().replace(/\s+/g, "-")
-      if (!byId[slug]) byId[slug] = { name: slug, icon: Monitor, products: [] }
-      byId[slug].products.push({
+        for (const p of prods) {
+          const slugBase = String(p.categoryId ?? "otros").toLowerCase().replace(/\s+/g, "-")
+          const slug = slugBase === ALL_CATEGORY_KEY ? `${slugBase}-${p.categoryId ?? "cat"}` : slugBase
+          if (!byId[slug]) byId[slug] = { name: slugBase, icon: Monitor, products: [] }
+          const productData = {
             id: p.id,
             title: p.name ?? "Producto",
             description: p.description ?? "",
-      image: p.image ?? "/placeholder.svg",
-      images: Array.isArray(p.images) ? p.images : undefined,
+            image: p.image ?? "/placeholder.svg",
+            images: Array.isArray(p.images) ? p.images : undefined,
             price: p.price != null ? `$${String(p.price)}` : "$0",
             brand: p.brand ?? "Genérico",
             rating: Number(p.rating ?? 4.5),
             features: Array.isArray(p.features) ? p.features : [],
             specifications: typeof p.specifications === "object" && p.specifications ? p.specifications : {},
             whatsappMessage: `Hola, me interesa ${p.name ?? "este producto"}.`,
-          })
+          }
+          byId[slug].products.push(productData)
+          byId[ALL_CATEGORY_KEY].products.push(productData)
         }
 
-  // Si la categoría activa ya no existe, seleccionar la primera disponible
-  const keys = Object.keys(byId)
-  if (!byId[activeCategory]) setActiveCategory(keys[0] || "")
+        // Si la categoría activa ya no existe, volver a "Todos"
+        const keys = Object.keys(byId)
+        if (!byId[activeCategory]) {
+          setActiveCategory(byId[ALL_CATEGORY_KEY] ? ALL_CATEGORY_KEY : keys[0] || ALL_CATEGORY_KEY)
+        }
         setCatalog(byId)
         setLoadError("")
       } catch (e) {
@@ -243,6 +264,12 @@ export function ProductsSection() {
     handleWhatsAppClick(message)
   }
 
+  const catalogEntries = Object.entries(catalog).sort(([keyA], [keyB]) => {
+    if (keyA === ALL_CATEGORY_KEY) return -1
+    if (keyB === ALL_CATEGORY_KEY) return 1
+    return keyA.localeCompare(keyB)
+  })
+
   return (
     <section
       id="productos"
@@ -341,7 +368,7 @@ export function ProductsSection() {
     <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
           <div className="mb-8 overflow-x-auto">
             <TabsList className="inline-flex w-max min-w-full grid-cols-none gap-1 p-1">
-      {Object.entries(catalog).map(([key, categoryObj]) => {
+          {catalogEntries.map(([key, categoryObj]) => {
                 const category = categoryObj as { name: string; icon: any; products: any[] }
                 const IconComponent = (category?.icon as any) || Monitor
                 return (
@@ -428,7 +455,7 @@ export function ProductsSection() {
             </Collapsible>
           </div>
 
-          {Object.entries(catalog).map(([key, categoryObj]) => {
+          {catalogEntries.map(([key, categoryObj]) => {
             const category = categoryObj as { name: string; icon: any; products: any[] }
             return (
             <TabsContent key={key} value={key}>
