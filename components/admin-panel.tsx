@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, DollarSign, Building2, FileText, Info } from "lucide-react"
+import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, Building2, FileText, Info, CreditCard, Calculator } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { BrandLogo } from "@/components/brand-logo"
 
@@ -21,6 +21,8 @@ interface Product {
   name: string
   brand?: string
   price: string | number
+  installmentCount?: number
+  installmentAmount?: string | number
   description?: string
   technicalInfo?: string
   image?: string
@@ -57,6 +59,27 @@ const defaultSiteSettings: SiteSettings = {
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/x-webp", "image/gif"])
 const SUPPORTED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"]
 
+const formatCurrencyAdmin = (value: number | string | undefined) => {
+  const num = Number(value)
+  if (!Number.isFinite(num) || num <= 0) return "—"
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 }).format(num)
+}
+
+const parseIntegerInput = (value: unknown, fallback = 0) => {
+  const parsed = Number.parseInt(String(value ?? "").trim().replace(/[^0-9-]/g, ""), 10)
+  return Number.isNaN(parsed) ? fallback : parsed
+}
+
+const parseDecimalInput = (value: unknown, fallback = 0) => {
+  const normalized = String(value ?? "")
+    .toString()
+    .trim()
+    .replace(/,/g, ".")
+    .replace(/[^0-9.-]/g, "")
+  const parsed = Number.parseFloat(normalized)
+  return Number.isNaN(parsed) ? fallback : parsed
+}
+
 const isSupportedImageFile = (file: File) => {
   const mime = (file.type || "").toLowerCase()
   if (mime && (mime.startsWith("image/") || SUPPORTED_IMAGE_TYPES.has(mime))) {
@@ -79,7 +102,8 @@ export function AdminPanel() {
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: "",
     brand: "",
-    price: "",
+    installmentCount: 12,
+    installmentAmount: "",
     description: "",
     technicalInfo: "",
     image: "",
@@ -189,6 +213,20 @@ export function AdminPanel() {
         imagesFinal = [placeholder]
       }
 
+      const installmentCount = Math.max(1, parseIntegerInput(editingProduct.installmentCount, 0))
+      let installmentAmount = parseDecimalInput(editingProduct.installmentAmount, 0)
+      if (installmentAmount <= 0 && installmentCount > 0) {
+        const existingPrice = parseDecimalInput(editingProduct.price, 0)
+        if (existingPrice > 0) {
+          installmentAmount = Number((existingPrice / installmentCount).toFixed(2))
+        }
+      }
+      if (installmentAmount <= 0) {
+        toast({ title: "Datos incompletos", description: "Define un monto por cuota válido.", variant: "destructive" as any })
+        return
+      }
+      const priceValue = Number((installmentAmount * installmentCount).toFixed(2))
+
       const payload = {
         name: editingProduct.name,
         description: editingProduct.description,
@@ -196,7 +234,9 @@ export function AdminPanel() {
         image: imagesFinal[0],
         images: imagesFinal.length ? imagesFinal : undefined,
         categoryId: editingProduct.categoryId,
-        price: typeof editingProduct.price === "string" ? Number(String(editingProduct.price).replace(/[^0-9.]/g, "")) : editingProduct.price,
+        price: priceValue,
+        installmentCount,
+        installmentAmount,
         brand: editingProduct.brand,
         rating: editingProduct.rating,
         features: editingProduct.features,
@@ -214,7 +254,7 @@ export function AdminPanel() {
       setEditAllImageFiles([])
       setEditingProduct(null)
       toast({ title: "Producto actualizado", description: "Imágenes actualizadas correctamente." })
-    } else if (isAddingProduct && newProduct.name && newProduct.brand && newProduct.price) {
+    } else if (isAddingProduct && newProduct.name && newProduct.brand && newProduct.installmentAmount) {
       let uploadedUrls: string[] = []
       if (newAllImageFiles.length > 0) {
         try {
@@ -251,6 +291,13 @@ export function AdminPanel() {
         uploadedUrls = [`/placeholder.svg?height=200&width=300&query=${encodeURIComponent(newProduct.name || "")}`]
       }
       const imagesFinal = Array.from(new Set(uploadedUrls)).slice(0, 4)
+      const installmentCount = Math.max(1, parseIntegerInput(newProduct.installmentCount, 0))
+      let installmentAmount = parseDecimalInput(newProduct.installmentAmount, 0)
+      if (installmentAmount <= 0) {
+        toast({ title: "Datos incompletos", description: "Define un monto por cuota válido.", variant: "destructive" as any })
+        return
+      }
+      const priceValue = Number((installmentAmount * installmentCount).toFixed(2))
       const payload = {
         name: newProduct.name,
         description: newProduct.description,
@@ -258,7 +305,9 @@ export function AdminPanel() {
         image: imagesFinal[0],
         images: imagesFinal.length ? imagesFinal : undefined,
         categoryId: newProduct.categoryId ?? categories[0]?.id,
-        price: typeof newProduct.price === "string" ? Number(String(newProduct.price).replace(/[^0-9.]/g, "")) : newProduct.price,
+        price: priceValue,
+        installmentCount,
+        installmentAmount,
         brand: newProduct.brand,
         rating: newProduct.rating,
         features: newProduct.features,
@@ -276,7 +325,8 @@ export function AdminPanel() {
       setNewProduct({
         name: "",
         brand: "",
-        price: "",
+        installmentCount: 12,
+        installmentAmount: "",
         description: "",
         technicalInfo: "",
         image: "",
@@ -495,7 +545,7 @@ export function AdminPanel() {
                     <TableHead>Imagen</TableHead>
                     <TableHead>Título</TableHead>
                     <TableHead>Marca</TableHead>
-                    <TableHead>Precio</TableHead>
+                    <TableHead>Financiación</TableHead>
                     <TableHead>Categoría</TableHead>
                     <TableHead>Rating</TableHead>
                     <TableHead>Acciones</TableHead>
@@ -513,7 +563,16 @@ export function AdminPanel() {
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.brand}</TableCell>
-                      <TableCell>{typeof product.price === "number" ? `$${product.price}` : String(product.price)}</TableCell>
+                      <TableCell>
+                        {product.installmentCount && product.installmentCount > 0 ? (
+                          <div className="text-sm leading-tight">
+                            <span className="font-medium">{product.installmentCount} cuotas</span>
+                            <span className="block text-xs text-muted-foreground">{formatCurrencyAdmin(product.installmentAmount)} c/u</span>
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary">
                           {categories.find((c) => c.id === product.categoryId)?.name || product.categoryId}
@@ -579,14 +638,38 @@ export function AdminPanel() {
                         placeholder="Ej: Samsung"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="price" className="flex items-center gap-2"><DollarSign className="w-4 h-4" /> Precio</Label>
-                      <Input
-                        id="price"
-                        value={newProduct.price || ""}
-                        onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                        placeholder="Ej: $899"
-                      />
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <Label htmlFor="installment-count" className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Cuotas</Label>
+                          <Input
+                            id="installment-count"
+                            type="number"
+                            min="1"
+                            value={newProduct.installmentCount != null ? newProduct.installmentCount : ""}
+                            onChange={(e) =>
+                              setNewProduct({
+                                ...newProduct,
+                                installmentCount: e.target.value === "" ? undefined : Number.parseInt(e.target.value, 10),
+                              })
+                            }
+                            placeholder="Ej: 12"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="installment-amount" className="flex items-center gap-2"><Calculator className="w-4 h-4" /> Monto por cuota</Label>
+                          <Input
+                            id="installment-amount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newProduct.installmentAmount != null ? String(newProduct.installmentAmount) : ""}
+                            onChange={(e) => setNewProduct({ ...newProduct, installmentAmount: e.target.value })}
+                            placeholder="Ej: 74999.99"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Calculamos el total automáticamente a partir de las cuotas.</p>
                     </div>
                     <div>
                       <Label htmlFor="category">Categoría</Label>
@@ -841,13 +924,36 @@ export function AdminPanel() {
                           onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="edit-price">Precio</Label>
-                        <Input
-                          id="edit-price"
-                          value={String(editingProduct.price)}
-                          onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
-                        />
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <Label htmlFor="edit-installment-count" className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Cuotas</Label>
+                            <Input
+                              id="edit-installment-count"
+                              type="number"
+                              min="1"
+                              value={editingProduct.installmentCount != null ? editingProduct.installmentCount : ""}
+                              onChange={(e) =>
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  installmentCount: e.target.value === "" ? undefined : Number.parseInt(e.target.value, 10),
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit-installment-amount" className="flex items-center gap-2"><Calculator className="w-4 h-4" /> Monto por cuota</Label>
+                            <Input
+                              id="edit-installment-amount"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editingProduct.installmentAmount != null ? String(editingProduct.installmentAmount) : ""}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, installmentAmount: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Recalculamos el total automáticamente según estas cuotas.</p>
                       </div>
                     </div>
                     <div className="space-y-4">

@@ -18,6 +18,26 @@ import type { Metadata } from "next"
 
 export const revalidate = 0
 
+const formatCurrency = (value: number) => value.toLocaleString("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  minimumFractionDigits: 2,
+})
+
+const parseDecimal = (value: unknown, fallback = 0) => {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback
+  const parsed = Number.parseFloat(String(value))
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const parseInteger = (value: unknown, fallback = 0) => {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === "number") return Number.isFinite(value) ? Math.trunc(value) : fallback
+  const parsed = Number.parseInt(String(value), 10)
+  return Number.isNaN(parsed) ? fallback : parsed
+}
+
 async function getProduct(id: number) {
   const product = await prisma.product.findUnique({ where: { id } })
   if (!product) return null
@@ -73,9 +93,25 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const images: string[] = (Array.isArray((product as any).images) && (product as any).images.length
     ? (product as any).images
     : [product.image || "/placeholder.svg"]).slice(0, 4)
-  const priceNum = parseFloat(String(product.price))
-  const priceStr = `$${String(product.price)}`
-  const originalPriceStr = `$${(priceNum * 1.15).toFixed(2)}`
+  const priceNum = parseDecimal(product.price)
+  const installmentCountRaw = parseInteger((product as any).installmentCount, 0)
+  const installmentAmountRaw = parseDecimal((product as any).installmentAmount)
+  const effectiveTotal = priceNum > 0 ? priceNum : installmentAmountRaw * (installmentCountRaw || 0)
+  const finalInstallmentCount = installmentCountRaw > 0
+    ? installmentCountRaw
+    : installmentAmountRaw > 0 && effectiveTotal > 0
+      ? Math.max(1, Math.round(effectiveTotal / installmentAmountRaw))
+      : 0
+  const finalInstallmentAmount = installmentAmountRaw > 0
+    ? installmentAmountRaw
+    : finalInstallmentCount > 0 && effectiveTotal > 0
+      ? effectiveTotal / finalInstallmentCount
+      : 0
+  const installmentDisplay = finalInstallmentCount > 0 && finalInstallmentAmount > 0
+    ? `${finalInstallmentCount} cuotas de ${formatCurrency(finalInstallmentAmount)}`
+    : null
+  const priceStr = formatCurrency(effectiveTotal)
+  const originalPriceStr = formatCurrency(effectiveTotal * 1.15)
   const related = await prisma.product.findMany({
     where: { categoryId: product.categoryId, id: { not: numId } },
     take: 6,
@@ -130,13 +166,16 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                 {product.brand && <Badge variant="secondary">{product.brand}</Badge>}
               </div>
             </div>
-            <div className="text-right">
-              <div className="flex items-center justify-end gap-2">
-                <span className="text-sm text-muted-foreground line-through">{originalPriceStr}</span>
+            <div className="text-right space-y-1">
+              {installmentDisplay && (
+                <div className="text-sm font-semibold text-emerald-600">{installmentDisplay}</div>
+              )}
+              <div className="text-3xl font-bold text-primary">{priceStr}</div>
+              <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+                <span className="line-through">{originalPriceStr}</span>
                 <Badge variant="secondary" className="text-xs">15% off</Badge>
               </div>
-              <div className="text-3xl font-bold text-primary mt-1">{priceStr}</div>
-              <div className="flex items-center justify-end gap-1 mt-1">
+              <div className="flex items-center justify-end gap-1 pt-1">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className={`w-4 h-4 ${i < Math.floor(Number(product.rating ?? 4.5)) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
                 ))}
@@ -187,6 +226,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               <div className="flex justify-between"><span className="text-muted-foreground">Categoría</span><span className="font-medium">{category?.name || "—"}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">ID</span><span className="font-medium">{product.id}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Rating</span><span className="font-medium">{Number(product.rating ?? 4.5).toFixed(1)} / 5</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Plan de cuotas</span><span className="font-medium">{installmentDisplay ?? "Consultar"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Monto por cuota</span><span className="font-medium">{finalInstallmentAmount > 0 ? formatCurrency(finalInstallmentAmount) : "Consultar"}</span></div>
               {createdDate && (
                 <div className="flex justify-between"><span className="text-muted-foreground">Fecha de alta</span><span className="font-medium">{createdDate.toLocaleDateString()}</span></div>
               )}
@@ -210,9 +251,15 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {related.map((r: any) => {
               const img = Array.isArray((r as any).images) && (r as any).images.length ? (r as any).images[0] : r.image || "/placeholder.svg"
-              const rPriceNum = parseFloat(String(r.price))
-              const rOriginal = `$${(rPriceNum * 1.15).toFixed(2)}`
-              const rPrice = `$${String(r.price)}`
+              const rPriceNum = parseDecimal(r.price)
+              const rCount = parseInteger((r as any).installmentCount, 0)
+              const rAmount = parseDecimal((r as any).installmentAmount)
+              const rInstallmentText = rCount > 0 && rAmount > 0
+                ? `${rCount} cuotas de ${formatCurrency(rAmount)}`
+                : "Financiación disponible"
+              const rTotal = rPriceNum > 0 ? rPriceNum : rAmount * (rCount || 0)
+              const rOriginal = formatCurrency(rTotal * 1.15)
+              const rPrice = formatCurrency(rTotal)
               return (
                 <Link key={r.id} href={`/productos/${r.id}`} className="block">
                   <Card className="hover:shadow-sm transition-shadow">
@@ -222,6 +269,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                     <CardContent className="p-3">
                       <div className="text-xs text-muted-foreground line-clamp-1">{r.brand || category?.name}</div>
                       <div className="text-sm font-medium line-clamp-2">{r.name}</div>
+                      <div className="text-[11px] text-emerald-600 font-medium mt-1">{rInstallmentText}</div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[11px] text-muted-foreground line-through">{rOriginal}</span>
                         <Badge variant="secondary" className="text-[10px]">15% off</Badge>

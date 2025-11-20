@@ -1,7 +1,6 @@
 import { Header } from "@/components/header"
 import { HeroSection } from "@/components/hero-section"
 import { ProductsSection } from "@/components/products-section"
-import { LoansSection } from "@/components/loans-section"
 import { BenefitsSection } from "@/components/benefits-section"
 import { TestimonialsSection } from "@/components/testimonials-section"
 import { ContactSection } from "@/components/contact-section"
@@ -14,7 +13,6 @@ export default function HomePage() {
       <main>
         <HeroSection />
         <ProductsSection />
-        <LoansSection />
         <BenefitsSection />
         <TestimonialsSection />
         <ContactSection />

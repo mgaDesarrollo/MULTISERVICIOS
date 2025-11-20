@@ -68,14 +68,6 @@ export function Footer() {
                 </li>
                 <li>
                   <button
-                    onClick={() => scrollToSection("prestamos")}
-                    className="text-primary-foreground/80 hover:text-primary-foreground transition-colors"
-                  >
-                    Préstamos para Negocios
-                  </button>
-                </li>
-                <li>
-                  <button
                     onClick={() => scrollToSection("nosotros")}
                     className="text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                   >

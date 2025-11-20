@@ -39,6 +39,17 @@ const categoryIcons: Record<string, any> = {
 // Eliminado mock de productos: el catálogo se cargará 100% desde la base de datos
 
 const ALL_CATEGORY_KEY = "all-categories"
+const INSTALLMENT_COUNT = 12
+
+const formatCurrency = (value: number) => {
+  if (!Number.isFinite(value)) return "$0"
+  return value.toLocaleString("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
 
 export function ProductsSection() {
   // Catálogo dinámico desde la base de datos
@@ -105,18 +116,43 @@ export function ProductsSection() {
           const slugBase = String(p.categoryId ?? "otros").toLowerCase().replace(/\s+/g, "-")
           const slug = slugBase === ALL_CATEGORY_KEY ? `${slugBase}-${p.categoryId ?? "cat"}` : slugBase
           if (!byId[slug]) byId[slug] = { name: slugBase, icon: Monitor, products: [] }
+
+          const rawPrice = typeof p.price === "number"
+            ? Number.isFinite(p.price) ? p.price : 0
+            : (() => {
+                const value = String(p.price ?? "0").replace(/\s+/g, "")
+                const normalized = value.replace(/\./g, "").replace(/,/g, ".").replace(/[^0-9.]/g, "")
+                const parsed = Number.parseFloat(normalized)
+                return Number.isFinite(parsed) ? parsed : 0
+              })()
+          const countFromApi = Number.parseInt(String((p as any).installmentCount ?? "").trim(), 10)
+          const amountFromApi = Number.parseFloat(String((p as any).installmentAmount ?? "").trim())
+          const installmentCount = Number.isFinite(countFromApi) && countFromApi > 0 ? countFromApi : INSTALLMENT_COUNT
+          const basePrice = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0
+          const fallbackAmount = installmentCount > 0 && basePrice > 0 ? basePrice / installmentCount : 0
+          const installmentAmount = Number.isFinite(amountFromApi) && amountFromApi > 0 ? amountFromApi : fallbackAmount
+          const priceValue = basePrice > 0 ? basePrice : installmentAmount * (installmentCount || 0)
+
+          const planSummary = installmentCount > 0 && installmentAmount > 0
+            ? `${installmentCount} cuotas de ${formatCurrency(installmentAmount)}`
+            : "su plan de financiación disponible"
           const productData = {
             id: p.id,
             title: p.name ?? "Producto",
             description: p.description ?? "",
             image: p.image ?? "/placeholder.svg",
             images: Array.isArray(p.images) ? p.images : undefined,
-            price: p.price != null ? `$${String(p.price)}` : "$0",
+            priceValue,
+            installmentCount,
+            installmentAmount,
+            installmentDisplay: installmentCount > 0 && installmentAmount > 0
+              ? `${installmentCount} cuotas de ${formatCurrency(installmentAmount)}`
+              : "Financiación personalizada",
             brand: p.brand ?? "Genérico",
             rating: Number(p.rating ?? 4.5),
             features: Array.isArray(p.features) ? p.features : [],
             specifications: typeof p.specifications === "object" && p.specifications ? p.specifications : {},
-            whatsappMessage: `Hola, me interesa ${p.name ?? "este producto"}.`,
+            whatsappMessage: `Hola, me interesa ${p.name ?? "este producto"}. ¿Podrían contarme más sobre ${planSummary}?`,
           }
           byId[slug].products.push(productData)
           byId[ALL_CATEGORY_KEY].products.push(productData)
@@ -163,15 +199,16 @@ export function ProductsSection() {
     let filtered = [...products]
 
     if (priceFilter !== "all") {
-      filtered = filtered.filter((product) => {
-        const price = Number.parseFloat(product.price.replace("$", "").replace(",", ""))
+      filtered = filtered.filter((product: any) => {
+        const installmentRaw = Number(product.installmentAmount ?? 0)
+        const installment = Number.isFinite(installmentRaw) ? installmentRaw : 0
         switch (priceFilter) {
           case "under500":
-            return price < 500
+            return installment < 500
           case "500to1000":
-            return price >= 500 && price <= 1000
+            return installment >= 500 && installment <= 1000
           case "over1000":
-            return price > 1000
+            return installment > 1000
           default:
             return true
         }
@@ -182,18 +219,12 @@ export function ProductsSection() {
       filtered = filtered.filter((product) => product.brand === brandFilter)
     }
 
-    filtered.sort((a, b) => {
+    filtered.sort((a: any, b: any) => {
       switch (sortBy) {
         case "price-low":
-          return (
-            Number.parseFloat(a.price.replace("$", "").replace(",", "")) -
-            Number.parseFloat(b.price.replace("$", "").replace(",", ""))
-          )
+          return Number(a.installmentAmount ?? 0) - Number(b.installmentAmount ?? 0)
         case "price-high":
-          return (
-            Number.parseFloat(b.price.replace("$", "").replace(",", "")) -
-            Number.parseFloat(a.price.replace("$", "").replace(",", ""))
-          )
+          return Number(b.installmentAmount ?? 0) - Number(a.installmentAmount ?? 0)
         case "rating":
           return b.rating - a.rating
         default:
@@ -237,7 +268,7 @@ export function ProductsSection() {
 
   const getTotalPrice = () => {
     return cart.reduce((total, item) => {
-      const price = Number.parseFloat(item.product.price.replace("$", "").replace(",", ""))
+      const price = Number(item.product?.priceValue || 0)
       return total + price * item.quantity
     }, 0)
   }
@@ -256,9 +287,9 @@ export function ProductsSection() {
 
     let message = "Hola, me interesa consultar sobre los siguientes productos:\n\n"
     cart.forEach((item, index) => {
-      message += `${index + 1}. ${item.product.title} - ${item.product.price} (Cantidad: ${item.quantity})\n`
+      message += `${index + 1}. ${item.product.title} - ${item.product.installmentDisplay} (Cantidad: ${item.quantity})\n`
     })
-    message += `\nTotal estimado: $${getTotalPrice().toLocaleString()}`
+    message += `\nTotal estimado: ${formatCurrency(getTotalPrice())}`
     message += "\n\n¿Podrían darme información sobre opciones de financiamiento?"
 
     handleWhatsAppClick(message)
@@ -321,7 +352,7 @@ export function ProductsSection() {
                         />
                         <div className="flex-1">
                           <h4 className="font-medium">{item.product.title}</h4>
-                          <p className="text-sm text-muted-foreground">{item.product.price}</p>
+                          <p className="text-sm text-muted-foreground">{item.product.installmentDisplay}</p>
                           <div className="flex items-center space-x-2 mt-2">
                             <Button
                               size="sm"
@@ -348,7 +379,7 @@ export function ProductsSection() {
                     <div className="border-t pt-4">
                       <div className="flex justify-between items-center mb-4">
                         <span className="font-medium">Total estimado:</span>
-                        <span className="text-xl font-bold">${getTotalPrice().toLocaleString()}</span>
+                        <span className="text-xl font-bold text-emerald-600">{formatCurrency(getTotalPrice())}</span>
                       </div>
                       <Button className="w-full bg-green-600 hover:bg-green-700" onClick={handleCartWhatsApp}>
                         <MessageCircle className="w-4 h-4 mr-2" />
@@ -405,13 +436,13 @@ export function ProductsSection() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Select value={priceFilter} onValueChange={setPriceFilter}>
                       <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Precio" />
+                        <SelectValue placeholder="Cuota" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Todos los precios</SelectItem>
-                        <SelectItem value="under500">Menos de $500</SelectItem>
-                        <SelectItem value="500to1000">$500 - $1,000</SelectItem>
-                        <SelectItem value="over1000">Más de $1,000</SelectItem>
+                        <SelectItem value="all">Todas las cuotas</SelectItem>
+                        <SelectItem value="under500">Cuota menor a $500</SelectItem>
+                        <SelectItem value="500to1000">Cuota entre $500 y $1,000</SelectItem>
+                        <SelectItem value="over1000">Cuota mayor a $1,000</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={brandFilter} onValueChange={setBrandFilter}>
@@ -433,8 +464,8 @@ export function ProductsSection() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="name">Nombre A-Z</SelectItem>
-                        <SelectItem value="price-low">Precio: Menor a Mayor</SelectItem>
-                        <SelectItem value="price-high">Precio: Mayor a Menor</SelectItem>
+                        <SelectItem value="price-low">Cuota: Menor a Mayor</SelectItem>
+                        <SelectItem value="price-high">Cuota: Mayor a Menor</SelectItem>
                         <SelectItem value="rating">Mejor Calificación</SelectItem>
                       </SelectContent>
                     </Select>
@@ -489,24 +520,12 @@ export function ProductsSection() {
                             className="max-w-full max-h-full object-contain drop-shadow-sm group-hover:drop-shadow-md transition"
                           />
                         </div>
-                        <div className="absolute top-2 md:top-4 right-2 md:right-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-[10px] md:text-xs text-muted-foreground line-through">
-                              {(() => {
-                                const num = Number.parseFloat(String(product.price).replace(/[$,]/g, ""))
-                                if (Number.isNaN(num)) return product.price
-                                return `$${(num * 1.15).toFixed(2)}`
-                              })()}
-                            </span>
-                            <Badge variant="secondary" className="text-[10px] md:text-xs">15% off</Badge>
-                          </div>
-                        </div>
                         <div className="absolute top-2 md:top-4 left-2 md:left-4">
                           <Badge
-                            variant="default"
-                            className="bg-primary text-primary-foreground font-bold text-xs md:text-sm"
+                            variant="secondary"
+                            className="text-[10px] md:text-xs font-semibold text-emerald-700 bg-emerald-100 border-emerald-200"
                           >
-                            {product.price}
+                            Hasta {product.installmentCount} cuotas
                           </Badge>
                         </div>
                         <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4">
@@ -519,7 +538,9 @@ export function ProductsSection() {
                     <CardContent className="p-3 md:p-6 flex flex-col h-full text-neutral-800">
                       <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2 text-neutral-900">
                         <CardTitle className="text-sm md:text-xl mb-1 md:mb-0 line-clamp-2 font-semibold">{product.title}</CardTitle>
-                        <span className="text-lg md:text-2xl font-bold text-blue-700 tracking-tight">{product.price}</span>
+                        <span className="text-base md:text-xl font-bold text-emerald-600 text-right leading-tight">
+                          {product.installmentDisplay}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1 md:gap-2 mb-2 text-yellow-500">
                         <div className="flex items-center">

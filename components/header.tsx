@@ -85,12 +85,6 @@ export function Header() {
                 Productos
               </button>
               <button
-                onClick={() => goTo("prestamos")}
-                className="px-3 py-2 text-sm font-medium transition-colors text-white/80 hover:text-secondary dark:text-muted-foreground dark:hover:text-primary"
-              >
-                Préstamos
-              </button>
-              <button
                 onClick={() => goTo("nosotros")}
                 className="px-3 py-2 text-sm font-medium transition-colors text-white/80 hover:text-secondary dark:text-muted-foreground dark:hover:text-primary"
               >
@@ -145,12 +139,6 @@ export function Header() {
                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary w-full text-left"
               >
                 Productos
-              </button>
-              <button
-                onClick={() => goTo("prestamos")}
-                className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary w-full text-left"
-              >
-                Préstamos
               </button>
               <button
                 onClick={() => goTo("nosotros")}
