@@ -1,35 +1,14 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Clock, DollarSign, Users, Smartphone, Award, TrendingUp, Shield } from "lucide-react"
+import { CheckCircle, Users, TrendingUp, Shield } from "lucide-react"
 
 const benefits = [
-  {
-    icon: Clock,
-    title: "Aprobación Rápida",
-    description:
-      "Obtén una respuesta en menos de 24 horas. Nuestro proceso optimizado te permite acceder al financiamiento cuando más lo necesitas.",
-    color: "text-blue-500",
-  },
-  {
-    icon: DollarSign,
-    title: "Tasas Competitivas",
-    description:
-      "Ofrecemos las mejores tasas del mercado, adaptadas a tu perfil crediticio y las necesidades específicas de tu negocio.",
-    color: "text-green-500",
-  },
   {
     icon: Users,
     title: "Asesoría Personalizada",
     description:
       "Un equipo de expertos te acompañará durante todo el proceso, brindándote la orientación que necesitas para tomar las mejores decisiones.",
     color: "text-purple-500",
-  },
-  {
-    icon: Smartphone,
-    title: "Proceso 100% Digital",
-    description:
-      "Solicita tu financiamiento desde cualquier lugar. Sin papeleos innecesarios, todo el proceso se realiza de forma digital y segura.",
-    color: "text-orange-500",
   },
   {
     icon: Shield,
@@ -44,13 +23,6 @@ const benefits = [
     description:
       "Planes de pago adaptados a tu flujo de caja. Ofrecemos períodos de gracia y opciones de refinanciamiento cuando lo necesites.",
     color: "text-indigo-500",
-  },
-  {
-    icon: Award,
-    title: "Experiencia Comprobada",
-    description:
-      "Más de 15 años financiando el crecimiento de empresas. Conocemos las necesidades del mercado y cómo ayudarte a crecer.",
-    color: "text-yellow-500",
   },
   {
     icon: CheckCircle,

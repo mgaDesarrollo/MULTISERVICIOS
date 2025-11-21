@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 type NullableString = string | null | undefined
+type SiteSettingsInput = Partial<Record<keyof SiteSettingsData, NullableString>>
 
 export interface SiteSettingsData {
   phone: string
@@ -40,7 +41,7 @@ export async function getSiteSettings(): Promise<SiteSettingsData> {
   }
 }
 
-export function toApiPayload(settings: Partial<SiteSettingsData>): SiteSettingsData {
+export function toApiPayload(settings: SiteSettingsInput): SiteSettingsData {
   return {
     phone: normalize(settings.phone),
     email: normalize(settings.email),

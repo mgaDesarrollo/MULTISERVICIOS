@@ -1,4 +1,16 @@
-import { PrismaClient, InstallmentStatus, PaymentMethod, SaleStatus } from "@prisma/client"
+import {
+  PrismaClient,
+  SaleStatus,
+  InstallmentStatus,
+  PaymentMethod,
+  type Product,
+  type Client,
+  type FinancingMethod,
+} from "@prisma/client"
+
+type SaleStatusValue = (typeof SaleStatus)[keyof typeof SaleStatus]
+type InstallmentStatusValue = (typeof InstallmentStatus)[keyof typeof InstallmentStatus]
+type PaymentMethodValue = (typeof PaymentMethod)[keyof typeof PaymentMethod]
 
 const prisma = new PrismaClient()
 
@@ -12,7 +24,11 @@ function addMonths(date: Date, months: number) {
   return d
 }
 
-async function ensureBasics() {
+async function ensureBasics(): Promise<{
+  products: Product[]
+  clients: Client[]
+  methods: FinancingMethod[]
+}> {
   // Admin
   await prisma.admin.upsert({
     where: { username: "admin" },
@@ -73,7 +89,11 @@ async function ensureBasics() {
     else await prisma.financingMethod.create({ data: m })
   }
 
-  return { products: await prisma.product.findMany(), clients: await prisma.client.findMany(), methods: await prisma.financingMethod.findMany() }
+  return {
+    products: await prisma.product.findMany(),
+    clients: await prisma.client.findMany(),
+    methods: await prisma.financingMethod.findMany(),
+  }
 }
 
 function frenchSchedule(principal: number, totalInstallments: number, periodRate: number) {
@@ -138,7 +158,7 @@ async function createSaleWithSchedule(opts: {
       installmentCount: n,
       appliedRate: method.interestRate,
       startDate,
-      status: "ACTIVE" as SaleStatus,
+      status: SaleStatus.ACTIVE,
       items: {
         createMany: {
           data: items.map((it) => ({ productId: it.productId, quantity: it.quantity, unitPrice: money(it.unitPrice) as any })),
@@ -157,7 +177,7 @@ async function createSaleWithSchedule(opts: {
     feeDue: money(0) as any,
     totalDue: money(s.totalDue) as any,
     amountPaid: money(0) as any,
-    status: (new Date(addMonths(startDate, idx + 1)) < new Date()) ? ("OVERDUE" as InstallmentStatus) : ("PENDING" as InstallmentStatus),
+    status: new Date(addMonths(startDate, idx + 1)) < new Date() ? InstallmentStatus.OVERDUE : InstallmentStatus.PENDING,
   }))
 
   await prisma.installment.createMany({ data: instData })
@@ -203,7 +223,7 @@ async function main() {
         saleId: saleB.id,
         installmentId: firstInstB.id,
         amount: money(partial) as any,
-        method: "CASH" as PaymentMethod,
+        method: PaymentMethod.CASH as PaymentMethodValue,
         notes: "Pago parcial demo",
       },
     })
@@ -211,7 +231,7 @@ async function main() {
       where: { id: firstInstB.id },
       data: {
         amountPaid: money(Number((firstInstB.amountPaid as any).toString?.() ?? firstInstB.amountPaid) + partial) as any,
-        status: "PARTIAL" as InstallmentStatus,
+        status: InstallmentStatus.PARTIAL as InstallmentStatusValue,
       },
     })
   }

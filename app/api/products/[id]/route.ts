@@ -27,11 +27,16 @@ export async function PUT(
       specifications,
       installmentCount,
       installmentAmount,
+      financingPlans,
     } = body
     const parsedCount = Number.parseInt(String(installmentCount ?? 0), 10)
     const parsedAmount = Number.parseFloat(String(installmentAmount ?? 0))
     const normalizedInstallmentCount = Number.isNaN(parsedCount) || parsedCount <= 0 ? 12 : parsedCount
     const normalizedInstallmentAmount = Number.isNaN(parsedAmount) || parsedAmount <= 0 ? 0 : parsedAmount
+    
+    // Delete existing plans and create new ones
+    await prisma.productFinancingPlan.deleteMany({ where: { productId: id } })
+    
     const updated = await prisma.product.update({
       where: { id },
       data: {
@@ -48,7 +53,18 @@ export async function PUT(
         specifications,
         installmentCount: normalizedInstallmentCount,
         installmentAmount: normalizedInstallmentAmount,
+        financingPlans: financingPlans && Array.isArray(financingPlans) ? {
+          create: financingPlans.map((plan: any) => ({
+            installmentCount: Math.max(1, Number.parseInt(String(plan.installmentCount ?? 1), 10)),
+            installmentAmount: Math.max(0, Number.parseFloat(String(plan.installmentAmount ?? 0)))
+          }))
+        } : undefined
       },
+      include: {
+        financingPlans: {
+          orderBy: { installmentCount: "asc" }
+        }
+      }
     })
     return NextResponse.json(updated)
   } catch (error: any) {

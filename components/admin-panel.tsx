@@ -31,6 +31,13 @@ interface Product {
   rating?: number
   features?: string[]
   specifications?: Record<string, string>
+  financingPlans?: FinancingPlan[]
+}
+
+interface FinancingPlan {
+  id?: number
+  installmentCount: number
+  installmentAmount: number | string
 }
 
 interface Category {
@@ -66,18 +73,50 @@ const formatCurrencyAdmin = (value: number | string | undefined) => {
 }
 
 const parseIntegerInput = (value: unknown, fallback = 0) => {
-  const parsed = Number.parseInt(String(value ?? "").trim().replace(/[^0-9-]/g, ""), 10)
+  if (typeof value === "number") return Number.isFinite(value) ? Math.trunc(value) : fallback
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/[.,\s]/g, "")
+    .replace(/[^0-9-]/g, "")
+  if (!raw) return fallback
+  const parsed = Number.parseInt(raw, 10)
   return Number.isNaN(parsed) ? fallback : parsed
 }
 
 const parseDecimalInput = (value: unknown, fallback = 0) => {
-  const normalized = String(value ?? "")
-    .toString()
-    .trim()
-    .replace(/,/g, ".")
-    .replace(/[^0-9.-]/g, "")
-  const parsed = Number.parseFloat(normalized)
-  return Number.isNaN(parsed) ? fallback : parsed
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback
+  let raw = String(value ?? "").trim()
+  if (!raw) return fallback
+  raw = raw.replace(/\s+/g, "")
+  raw = raw.replace(/[$€£¥%]/g, "")
+  const hasComma = raw.includes(",")
+  const hasDot = raw.includes(".")
+  if (hasComma && hasDot) {
+    if (raw.lastIndexOf(",") > raw.lastIndexOf(".")) {
+      raw = raw.replace(/\./g, "").replace(/,/g, ".")
+    } else {
+      raw = raw.replace(/,/g, "")
+    }
+  } else if (hasComma && !hasDot) {
+    raw = raw.replace(/,/g, ".")
+  } else {
+    raw = raw.replace(/,/g, "")
+    if (hasDot) {
+      const parts = raw.split(".")
+      const isThousandSeparated = parts.length > 1 && parts.every((part, index) => {
+        if (index === 0) return part.length <= 3
+        if (index === parts.length - 1) return part.length === 3
+        return part.length === 3
+      })
+      if (isThousandSeparated) {
+        raw = raw.replace(/\./g, "")
+      }
+    }
+  }
+  raw = raw.replace(/[^0-9.-]/g, "")
+  if (!raw || raw === "-" || raw === "." || raw === "-." ) return fallback
+  const parsed = Number.parseFloat(raw)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
 const isSupportedImageFile = (file: File) => {
@@ -111,6 +150,7 @@ export function AdminPanel() {
     rating: 5,
     features: [],
     specifications: {},
+    financingPlans: [],
   })
   const [newCategory, setNewCategory] = useState<Partial<Category>>({
     name: "",
@@ -213,19 +253,23 @@ export function AdminPanel() {
         imagesFinal = [placeholder]
       }
 
-      const installmentCount = Math.max(1, parseIntegerInput(editingProduct.installmentCount, 0))
-      let installmentAmount = parseDecimalInput(editingProduct.installmentAmount, 0)
-      if (installmentAmount <= 0 && installmentCount > 0) {
-        const existingPrice = parseDecimalInput(editingProduct.price, 0)
-        if (existingPrice > 0) {
-          installmentAmount = Number((existingPrice / installmentCount).toFixed(2))
-        }
-      }
-      if (installmentAmount <= 0) {
-        toast({ title: "Datos incompletos", description: "Define un monto por cuota válido.", variant: "destructive" as any })
+      // Validate financing plans
+      const validPlans = (editingProduct.financingPlans || []).filter(
+        (p) => p.installmentCount > 0 && parseDecimalInput(String(p.installmentAmount), 0) > 0
+      )
+      if (validPlans.length === 0) {
+        toast({ title: "Datos incompletos", description: "Define al menos un plan de financiamiento válido.", variant: "destructive" as any })
         return
       }
-      const priceValue = Number((installmentAmount * installmentCount).toFixed(2))
+
+      const financingPlansPayload = validPlans.map((p) => ({
+        installmentCount: p.installmentCount,
+        installmentAmount: parseDecimalInput(String(p.installmentAmount), 0)
+      }))
+
+      // Calculate price and single installment from first plan for backward compatibility
+      const firstPlan = financingPlansPayload[0]
+      const priceValue = Number((firstPlan.installmentAmount * firstPlan.installmentCount).toFixed(2))
 
       const payload = {
         name: editingProduct.name,
@@ -235,25 +279,25 @@ export function AdminPanel() {
         images: imagesFinal.length ? imagesFinal : undefined,
         categoryId: editingProduct.categoryId,
         price: priceValue,
-        installmentCount,
-        installmentAmount,
+        installmentCount: firstPlan.installmentCount,
+        installmentAmount: firstPlan.installmentAmount,
         brand: editingProduct.brand,
         rating: editingProduct.rating,
         features: editingProduct.features,
         specifications: editingProduct.specifications,
+        financingPlans: financingPlansPayload,
       }
       const res = await fetch(`/api/products/${editingProduct.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
-      if (res.ok) {
-        const updated = await res.json()
-        setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
-      }
+      const response = await handleApiResponse(res, { success: "Producto actualizado" })
+      if (!response) return
+      const updated = await response.json()
+      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
       setEditAllImageFiles([])
       setEditingProduct(null)
-      toast({ title: "Producto actualizado", description: "Imágenes actualizadas correctamente." })
     } else if (isAddingProduct && newProduct.name && newProduct.brand && newProduct.installmentAmount) {
       let uploadedUrls: string[] = []
       if (newAllImageFiles.length > 0) {
@@ -291,13 +335,25 @@ export function AdminPanel() {
         uploadedUrls = [`/placeholder.svg?height=200&width=300&query=${encodeURIComponent(newProduct.name || "")}`]
       }
       const imagesFinal = Array.from(new Set(uploadedUrls)).slice(0, 4)
-      const installmentCount = Math.max(1, parseIntegerInput(newProduct.installmentCount, 0))
-      let installmentAmount = parseDecimalInput(newProduct.installmentAmount, 0)
-      if (installmentAmount <= 0) {
-        toast({ title: "Datos incompletos", description: "Define un monto por cuota válido.", variant: "destructive" as any })
+
+      // Validate financing plans
+      const validPlans = (newProduct.financingPlans || []).filter(
+        (p) => p.installmentCount > 0 && parseDecimalInput(String(p.installmentAmount), 0) > 0
+      )
+      if (validPlans.length === 0) {
+        toast({ title: "Datos incompletos", description: "Define al menos un plan de financiamiento válido.", variant: "destructive" as any })
         return
       }
-      const priceValue = Number((installmentAmount * installmentCount).toFixed(2))
+
+      const financingPlansPayload = validPlans.map((p) => ({
+        installmentCount: p.installmentCount,
+        installmentAmount: parseDecimalInput(String(p.installmentAmount), 0)
+      }))
+
+      // Calculate price and single installment from first plan for backward compatibility
+      const firstPlan = financingPlansPayload[0]
+      const priceValue = Number((firstPlan.installmentAmount * firstPlan.installmentCount).toFixed(2))
+
       const payload = {
         name: newProduct.name,
         description: newProduct.description,
@@ -306,22 +362,23 @@ export function AdminPanel() {
         images: imagesFinal.length ? imagesFinal : undefined,
         categoryId: newProduct.categoryId ?? categories[0]?.id,
         price: priceValue,
-        installmentCount,
-        installmentAmount,
+        installmentCount: firstPlan.installmentCount,
+        installmentAmount: firstPlan.installmentAmount,
         brand: newProduct.brand,
         rating: newProduct.rating,
         features: newProduct.features,
         specifications: newProduct.specifications,
+        financingPlans: financingPlansPayload,
       }
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
-      if (res.ok) {
-        const created = await res.json()
-        setProducts((prev) => [created, ...prev])
-      }
+      const response = await handleApiResponse(res, { success: "Producto creado" })
+      if (!response) return
+      const created = await response.json()
+      setProducts((prev) => [created, ...prev])
       setNewProduct({
         name: "",
         brand: "",
@@ -337,7 +394,6 @@ export function AdminPanel() {
       })
       setNewAllImageFiles([])
       setIsAddingProduct(false)
-      toast({ title: "Producto creado", description: "Se guardó el producto con sus imágenes." })
     } else {
       toast({ title: "Datos incompletos", description: "Completa la información del producto.", variant: "destructive" as any })
     }
@@ -564,10 +620,16 @@ export function AdminPanel() {
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.brand}</TableCell>
                       <TableCell>
-                        {product.installmentCount && product.installmentCount > 0 ? (
+                        {product.financingPlans && product.financingPlans.length > 0 ? (
                           <div className="text-sm leading-tight">
-                            <span className="font-medium">{product.installmentCount} cuotas</span>
-                            <span className="block text-xs text-muted-foreground">{formatCurrencyAdmin(product.installmentAmount)} c/u</span>
+                            {product.financingPlans.slice(0, 2).map((plan, idx) => (
+                              <div key={idx}>
+                                <span className="font-medium">{plan.installmentCount} x</span> {formatCurrencyAdmin(plan.installmentAmount)}
+                              </div>
+                            ))}
+                            {product.financingPlans.length > 2 && (
+                              <span className="text-xs text-muted-foreground">+{product.financingPlans.length - 2} más</span>
+                            )}
                           </div>
                         ) : (
                           "—"
@@ -638,38 +700,73 @@ export function AdminPanel() {
                         placeholder="Ej: Samsung"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <Label htmlFor="installment-count" className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Cuotas</Label>
-                          <Input
-                            id="installment-count"
-                            type="number"
-                            min="1"
-                            value={newProduct.installmentCount != null ? newProduct.installmentCount : ""}
-                            onChange={(e) =>
-                              setNewProduct({
-                                ...newProduct,
-                                installmentCount: e.target.value === "" ? undefined : Number.parseInt(e.target.value, 10),
-                              })
-                            }
-                            placeholder="Ej: 12"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="installment-amount" className="flex items-center gap-2"><Calculator className="w-4 h-4" /> Monto por cuota</Label>
-                          <Input
-                            id="installment-amount"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={newProduct.installmentAmount != null ? String(newProduct.installmentAmount) : ""}
-                            onChange={(e) => setNewProduct({ ...newProduct, installmentAmount: e.target.value })}
-                            placeholder="Ej: 74999.99"
-                          />
-                        </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Planes de Financiamiento</Label>
+                        <p className="text-xs text-muted-foreground">Define múltiples opciones de financiamiento para este producto.</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">Calculamos el total automáticamente a partir de las cuotas.</p>
+                      {newProduct.financingPlans && newProduct.financingPlans.length > 0 && (
+                        <div className="space-y-2">
+                          {newProduct.financingPlans.map((plan, idx) => (
+                            <div key={idx} className="flex items-center gap-2 p-2 border rounded">
+                              <Input
+                                type="number"
+                                min="1"
+                                value={plan.installmentCount}
+                                onChange={(e) => {
+                                  const updated = [...(newProduct.financingPlans || [])]
+                                  updated[idx] = { ...updated[idx], installmentCount: Number.parseInt(e.target.value, 10) || 0 }
+                                  setNewProduct({ ...newProduct, financingPlans: updated })
+                                }}
+                                placeholder="Cuotas"
+                                className="w-24"
+                              />
+                              <span className="text-sm">cuotas de</span>
+                              <Input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={String(plan.installmentAmount)}
+                                onChange={(e) => {
+                                  const updated = [...(newProduct.financingPlans || [])]
+                                  updated[idx] = { ...updated[idx], installmentAmount: e.target.value }
+                                  setNewProduct({ ...newProduct, financingPlans: updated })
+                                }}
+                                placeholder="Monto"
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const updated = (newProduct.financingPlans || []).filter((_, i) => i !== idx)
+                                  setNewProduct({ ...newProduct, financingPlans: updated })
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setNewProduct({
+                            ...newProduct,
+                            financingPlans: [
+                              ...(newProduct.financingPlans || []),
+                              { installmentCount: 0, installmentAmount: "" }
+                            ]
+                          })
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Agregar Plan
+                      </Button>
                     </div>
                     <div>
                       <Label htmlFor="category">Categoría</Label>
@@ -924,36 +1021,73 @@ export function AdminPanel() {
                           onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
                         />
                       </div>
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <Label htmlFor="edit-installment-count" className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Cuotas</Label>
-                            <Input
-                              id="edit-installment-count"
-                              type="number"
-                              min="1"
-                              value={editingProduct.installmentCount != null ? editingProduct.installmentCount : ""}
-                              onChange={(e) =>
-                                setEditingProduct({
-                                  ...editingProduct,
-                                  installmentCount: e.target.value === "" ? undefined : Number.parseInt(e.target.value, 10),
-                                })
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="edit-installment-amount" className="flex items-center gap-2"><Calculator className="w-4 h-4" /> Monto por cuota</Label>
-                            <Input
-                              id="edit-installment-amount"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={editingProduct.installmentAmount != null ? String(editingProduct.installmentAmount) : ""}
-                              onChange={(e) => setEditingProduct({ ...editingProduct, installmentAmount: e.target.value })}
-                            />
-                          </div>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Planes de Financiamiento</Label>
+                          <p className="text-xs text-muted-foreground">Define múltiples opciones de financiamiento para este producto.</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">Recalculamos el total automáticamente según estas cuotas.</p>
+                        {editingProduct.financingPlans && editingProduct.financingPlans.length > 0 && (
+                          <div className="space-y-2">
+                            {editingProduct.financingPlans.map((plan, idx) => (
+                              <div key={idx} className="flex items-center gap-2 p-2 border rounded">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={plan.installmentCount}
+                                  onChange={(e) => {
+                                    const updated = [...(editingProduct.financingPlans || [])]
+                                    updated[idx] = { ...updated[idx], installmentCount: Number.parseInt(e.target.value, 10) || 0 }
+                                    setEditingProduct({ ...editingProduct, financingPlans: updated })
+                                  }}
+                                  placeholder="Cuotas"
+                                  className="w-24"
+                                />
+                                <span className="text-sm">cuotas de</span>
+                                <Input
+                                  type="number"
+                                  min="0.01"
+                                  step="0.01"
+                                  value={String(plan.installmentAmount)}
+                                  onChange={(e) => {
+                                    const updated = [...(editingProduct.financingPlans || [])]
+                                    updated[idx] = { ...updated[idx], installmentAmount: e.target.value }
+                                    setEditingProduct({ ...editingProduct, financingPlans: updated })
+                                  }}
+                                  placeholder="Monto"
+                                  className="flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const updated = (editingProduct.financingPlans || []).filter((_, i) => i !== idx)
+                                    setEditingProduct({ ...editingProduct, financingPlans: updated })
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingProduct({
+                              ...editingProduct,
+                              financingPlans: [
+                                ...(editingProduct.financingPlans || []),
+                                { installmentCount: 0, installmentAmount: "" }
+                              ]
+                            })
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Agregar Plan
+                        </Button>
                       </div>
                     </div>
                     <div className="space-y-4">

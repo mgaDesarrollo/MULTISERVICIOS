@@ -4,7 +4,14 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   try {
-    const res = await prisma.product.findMany({ orderBy: { id: "desc" } })
+    const res = await prisma.product.findMany({
+      orderBy: { id: "desc" },
+      include: {
+        financingPlans: {
+          orderBy: { installmentCount: "asc" }
+        }
+      }
+    })
     return NextResponse.json(res)
   } catch (error: any) {
     return NextResponse.json({ error: String(error?.message || error) }, { status: 500 })
@@ -29,6 +36,7 @@ export async function POST(request: Request) {
     specifications,
     installmentCount,
     installmentAmount,
+    financingPlans,
   } = await request.json()
   const parsedCount = Number.parseInt(String(installmentCount ?? 0), 10)
   const parsedAmount = Number.parseFloat(String(installmentAmount ?? 0))
@@ -50,7 +58,16 @@ export async function POST(request: Request) {
         specifications,
         installmentCount: normalizedInstallmentCount,
         installmentAmount: normalizedInstallmentAmount,
+        financingPlans: financingPlans && Array.isArray(financingPlans) ? {
+          create: financingPlans.map((plan: any) => ({
+            installmentCount: Math.max(1, Number.parseInt(String(plan.installmentCount ?? 1), 10)),
+            installmentAmount: Math.max(0, Number.parseFloat(String(plan.installmentAmount ?? 0)))
+          }))
+        } : undefined
       },
+      include: {
+        financingPlans: true
+      }
     })
     return NextResponse.json(created)
   } catch (error: any) {

@@ -106,6 +106,14 @@ export function Header() {
               <span className="sr-only">Toggle theme</span>
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("/login")}
+              className="bg-black text-white border-white/30 hover:bg-black/90 hover:border-white/50"
+            >
+              Login
+            </Button>
+            <Button
               onClick={() => goTo("contacto")}
               className="bg-gradient-to-r from-secondary to-secondary/90 hover:from-secondary/90 hover:to-secondary shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 px-6 py-2.5"
             >
@@ -152,7 +160,14 @@ export function Header() {
               >
                 Contacto
               </button>
-              <div className="px-3 py-2">
+              <div className="px-3 py-2 space-y-2">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/login")}
+                  className="w-full"
+                >
+                  Login
+                </Button>
                 <Button
                   onClick={() => goTo("contacto")}
                   className="w-full bg-secondary hover:bg-secondary/90"

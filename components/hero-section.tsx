@@ -71,17 +71,7 @@ export function HeroSection() {
             style={{ fontFamily: 'var(--font-display)', letterSpacing: '-1.25px' }}
           >
             <span className="gradient-flow bg-gradient-to-r from-emerald-500 via-emerald-600 to-blue-600 bg-clip-text text-transparent drop-shadow-sm inline-block">
-              Financiamiento
-            </span>{' '}
-            <span className="gradient-flow-fast bg-gradient-to-r from-blue-600 via-emerald-600 to-emerald-500 bg-clip-text text-transparent inline-block">
-              Inteligente
-            </span>
-            <br />
-            <span className="gradient-flow bg-gradient-to-r from-emerald-500 via-blue-500 to-emerald-600 bg-clip-text text-transparent inline-block">
-              para tu
-            </span>{' '}
-            <span className="gradient-flow-fast bg-gradient-to-r from-blue-500 via-emerald-600 to-blue-600 bg-clip-text text-transparent inline-block">
-              Negocio
+              Multiservicios
             </span>
             <span className="absolute -inset-x-4 -inset-y-2 rounded-md pointer-events-none" aria-hidden="true" />
           </h1>

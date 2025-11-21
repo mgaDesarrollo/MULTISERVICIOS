@@ -125,17 +125,40 @@ export function ProductsSection() {
                 const parsed = Number.parseFloat(normalized)
                 return Number.isFinite(parsed) ? parsed : 0
               })()
-          const countFromApi = Number.parseInt(String((p as any).installmentCount ?? "").trim(), 10)
-          const amountFromApi = Number.parseFloat(String((p as any).installmentAmount ?? "").trim())
-          const installmentCount = Number.isFinite(countFromApi) && countFromApi > 0 ? countFromApi : INSTALLMENT_COUNT
-          const basePrice = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0
-          const fallbackAmount = installmentCount > 0 && basePrice > 0 ? basePrice / installmentCount : 0
-          const installmentAmount = Number.isFinite(amountFromApi) && amountFromApi > 0 ? amountFromApi : fallbackAmount
-          const priceValue = basePrice > 0 ? basePrice : installmentAmount * (installmentCount || 0)
 
-          const planSummary = installmentCount > 0 && installmentAmount > 0
-            ? `${installmentCount} cuotas de ${formatCurrency(installmentAmount)}`
-            : "su plan de financiación disponible"
+          // Use financingPlans if available, otherwise fallback to single installment
+          const financingPlans = Array.isArray((p as any).financingPlans) && (p as any).financingPlans.length > 0
+            ? (p as any).financingPlans.map((plan: any) => ({
+                installmentCount: Number.parseInt(String(plan.installmentCount ?? 0), 10),
+                installmentAmount: Number.parseFloat(String(plan.installmentAmount ?? 0))
+              })).filter((plan: any) => plan.installmentCount > 0 && plan.installmentAmount > 0)
+            : []
+
+          // Fallback to single installment fields if no financing plans
+          let defaultPlan = null
+          if (financingPlans.length === 0) {
+            const countFromApi = Number.parseInt(String((p as any).installmentCount ?? "").trim(), 10)
+            const amountFromApi = Number.parseFloat(String((p as any).installmentAmount ?? "").trim())
+            const installmentCount = Number.isFinite(countFromApi) && countFromApi > 0 ? countFromApi : INSTALLMENT_COUNT
+            const basePrice = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0
+            const fallbackAmount = installmentCount > 0 && basePrice > 0 ? basePrice / installmentCount : 0
+            const installmentAmount = Number.isFinite(amountFromApi) && amountFromApi > 0 ? amountFromApi : fallbackAmount
+            if (installmentCount > 0 && installmentAmount > 0) {
+              defaultPlan = { installmentCount, installmentAmount }
+              financingPlans.push(defaultPlan)
+            }
+          }
+
+          if (financingPlans.length === 0) continue // Skip products without valid financing
+
+          // Use first plan as default
+          const firstPlan = financingPlans[0]
+          const priceValue = firstPlan.installmentAmount * firstPlan.installmentCount
+
+          const planSummary = financingPlans.length > 1
+            ? `${financingPlans.length} planes disponibles`
+            : `${firstPlan.installmentCount} cuotas de ${formatCurrency(firstPlan.installmentAmount)}`
+
           const productData = {
             id: p.id,
             title: p.name ?? "Producto",
@@ -143,11 +166,10 @@ export function ProductsSection() {
             image: p.image ?? "/placeholder.svg",
             images: Array.isArray(p.images) ? p.images : undefined,
             priceValue,
-            installmentCount,
-            installmentAmount,
-            installmentDisplay: installmentCount > 0 && installmentAmount > 0
-              ? `${installmentCount} cuotas de ${formatCurrency(installmentAmount)}`
-              : "Financiación personalizada",
+            financingPlans,
+            installmentCount: firstPlan.installmentCount,
+            installmentAmount: firstPlan.installmentAmount,
+            installmentDisplay: `${firstPlan.installmentCount} cuotas de ${formatCurrency(firstPlan.installmentAmount)}`,
             brand: p.brand ?? "Genérico",
             rating: Number(p.rating ?? 4.5),
             features: Array.isArray(p.features) ? p.features : [],
@@ -506,13 +528,13 @@ export function ProductsSection() {
                         {visible.map((product, index) => (
                   <Card
                     key={product.id ?? index}
-                    className="group relative cursor-pointer bg-white dark:bg-white border border-neutral-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-[3px] rounded-xl overflow-hidden"
+                    className="group relative cursor-pointer bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-[3px] rounded-xl overflow-hidden"
                     onClick={() => router.push(`/productos/${product.id ?? index}`)}
                   >
                     {/* Barra superior por categoría */}
                     <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 opacity-70 group-hover:opacity-100 transition-opacity" />
-                    <CardHeader className="p-0 bg-white dark:bg-white">
-                      <div className="relative overflow-hidden rounded-t-lg bg-white dark:bg-white">
+                    <CardHeader className="p-0 bg-white dark:bg-neutral-900">
+                      <div className="relative overflow-hidden rounded-t-lg bg-white">
                         <div className="w-full aspect-[4/3] flex items-center justify-center p-2 md:p-3">
                           <img
                             src={product.image || "/placeholder.svg"}
@@ -525,18 +547,20 @@ export function ProductsSection() {
                             variant="secondary"
                             className="text-[10px] md:text-xs font-semibold text-emerald-700 bg-emerald-100 border-emerald-200"
                           >
-                            Hasta {product.installmentCount} cuotas
+                            {product.financingPlans && product.financingPlans.length > 1
+                              ? `${product.financingPlans.length} planes disponibles`
+                              : `Hasta ${product.installmentCount} cuotas`}
                           </Badge>
                         </div>
                         <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4">
-                          <Badge variant="outline" className="bg-white/90 text-xs text-neutral-600 border border-neutral-300">
+                          <Badge variant="outline" className="bg-white/90 dark:bg-neutral-800/90 text-xs text-neutral-600 dark:text-neutral-300 border border-neutral-300 dark:border-neutral-600">
                             {product.brand}
                           </Badge>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-3 md:p-6 flex flex-col h-full text-neutral-800">
-                      <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2 text-neutral-900">
+                    <CardContent className="p-3 md:p-6 flex flex-col h-full text-neutral-800 dark:text-neutral-200">
+                      <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2 text-neutral-900 dark:text-neutral-100">
                         <CardTitle className="text-sm md:text-xl mb-1 md:mb-0 line-clamp-2 font-semibold">{product.title}</CardTitle>
                         <span className="text-base md:text-xl font-bold text-emerald-600 text-right leading-tight">
                           {product.installmentDisplay}
@@ -553,11 +577,43 @@ export function ProductsSection() {
                         </div>
                         <span className="text-xs md:text-sm text-neutral-500">({product.rating})</span>
                       </div>
+                      {/* Financing Plan Selector */}
+                      {product.financingPlans && product.financingPlans.length > 1 && (
+                        <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={`${product.installmentCount}x${product.installmentAmount}`}
+                            onValueChange={(value) => {
+                              const [count, amount] = value.split('x').map(Number)
+                              const plan = product.financingPlans.find((p: any) => p.installmentCount === count && p.installmentAmount === amount)
+                              if (plan) {
+                                // Update product's displayed plan
+                                product.installmentCount = plan.installmentCount
+                                product.installmentAmount = plan.installmentAmount
+                                product.installmentDisplay = `${plan.installmentCount} cuotas de ${formatCurrency(plan.installmentAmount)}`
+                                product.priceValue = plan.installmentAmount * plan.installmentCount
+                                // Force re-render
+                                setCart([...cart])
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {product.financingPlans.map((plan: any, idx: number) => (
+                                <SelectItem key={idx} value={`${plan.installmentCount}x${plan.installmentAmount}`}>
+                                  {plan.installmentCount} cuotas de {formatCurrency(plan.installmentAmount)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       {/* Descripción oculta en card; se muestra en la página de detalle */}
                       <div className="space-y-1 md:space-y-2 mt-auto">
                         <Button
                           variant="outline"
-                          className="w-full bg-white hover:bg-neutral-50 text-[10px] sm:text-xs md:text-sm h-8 md:h-10 border-neutral-300"
+                          className="w-full bg-white hover:bg-neutral-50 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-[10px] sm:text-xs md:text-sm h-8 md:h-10 border-neutral-300 dark:border-neutral-600"
                           onClick={(e) => {
                             e.stopPropagation()
                             router.push(`/productos/${product.id ?? index}`)
@@ -567,7 +623,7 @@ export function ProductsSection() {
                           Ver Detalles
                         </Button>
                         <Button
-                          className="w-full bg-white hover:bg-neutral-50 text-[10px] sm:text-xs md:text-sm h-8 md:h-10 border border-neutral-300"
+                          className="w-full bg-white hover:bg-neutral-50 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-[10px] sm:text-xs md:text-sm h-8 md:h-10 border border-neutral-300 dark:border-neutral-600"
                           variant="outline"
                           onClick={() => addToCart(product, key)}
                         >
@@ -575,7 +631,7 @@ export function ProductsSection() {
                           <span className="hidden sm:inline">Agregar al </span>Carrito
                         </Button>
                         <Button
-                          className="w-full bg-orange-500 hover:bg-orange-600 text-white text-[10px] sm:text-xs md:text-sm h-8 md:h-10 shadow-md shadow-orange-500/20"
+                          className="w-full bg-orange-500 hover:bg-orange-600 text-white text-[10px] sm:text-xs md:text-sm h-8 md:h-10 shadow-md shadow-orange-500/20 border border-orange-600"
                           onClick={() => handleWhatsAppClick(product.whatsappMessage)}
                         >
                           <MessageCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />

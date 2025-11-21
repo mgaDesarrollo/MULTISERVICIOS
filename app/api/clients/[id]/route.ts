@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
-import { Prisma } from "@prisma/client"
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library"
 
 export async function GET(
   _request: Request,
@@ -74,8 +74,9 @@ export async function PUT(
     const updated = await prisma.client.update({ where: { id }, data: { name, dni, cuit, email, phone, notes } })
     return NextResponse.json(updated)
   } catch (error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const fields = (error.meta?.target as string[]) || []
+    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
+      const target = error.meta?.target
+      const fields = Array.isArray(target) ? target : target ? [String(target)] : []
       return NextResponse.json({ error: `Duplicado en campos: ${fields.join(", ")}` }, { status: 409 })
     }
     const message = error instanceof Error ? error.message : String(error)
