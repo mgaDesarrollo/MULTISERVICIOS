@@ -711,12 +711,14 @@ export function AdminPanel() {
                           {newProduct.financingPlans.map((plan, idx) => (
                             <div key={idx} className="flex items-center gap-2 p-2 border rounded">
                               <Input
-                                type="number"
-                                min="1"
-                                value={plan.installmentCount}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={plan.installmentCount || ""}
                                 onChange={(e) => {
+                                  const value = e.target.value.replace(/[^0-9]/g, '')
                                   const updated = [...(newProduct.financingPlans || [])]
-                                  updated[idx] = { ...updated[idx], installmentCount: Number.parseInt(e.target.value, 10) || 0 }
+                                  updated[idx] = { ...updated[idx], installmentCount: value ? Number.parseInt(value, 10) : 0 }
                                   setNewProduct({ ...newProduct, financingPlans: updated })
                                 }}
                                 placeholder="Cuotas"
@@ -1032,12 +1034,14 @@ export function AdminPanel() {
                             {editingProduct.financingPlans.map((plan, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 border rounded">
                                 <Input
-                                  type="number"
-                                  min="1"
-                                  value={plan.installmentCount}
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={plan.installmentCount || ""}
                                   onChange={(e) => {
+                                    const value = e.target.value.replace(/[^0-9]/g, '')
                                     const updated = [...(editingProduct.financingPlans || [])]
-                                    updated[idx] = { ...updated[idx], installmentCount: Number.parseInt(e.target.value, 10) || 0 }
+                                    updated[idx] = { ...updated[idx], installmentCount: value ? Number.parseInt(value, 10) : 0 }
                                     setEditingProduct({ ...editingProduct, financingPlans: updated })
                                   }}
                                   placeholder="Cuotas"
