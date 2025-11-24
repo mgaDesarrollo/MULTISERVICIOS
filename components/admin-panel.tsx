@@ -150,7 +150,7 @@ export function AdminPanel() {
     rating: 5,
     features: [],
     specifications: {},
-    financingPlans: [],
+    financingPlans: [{ installmentCount: 12, installmentAmount: "" }],
   })
   const [newCategory, setNewCategory] = useState<Partial<Category>>({
     name: "",
@@ -298,7 +298,7 @@ export function AdminPanel() {
       setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
       setEditAllImageFiles([])
       setEditingProduct(null)
-    } else if (isAddingProduct && newProduct.name && newProduct.brand && newProduct.installmentAmount) {
+    } else if (isAddingProduct && newProduct.name && newProduct.brand) {
       let uploadedUrls: string[] = []
       if (newAllImageFiles.length > 0) {
         try {
@@ -391,6 +391,7 @@ export function AdminPanel() {
         rating: 5,
         features: [],
         specifications: {},
+        financingPlans: [{ installmentCount: 12, installmentAmount: "" }],
       })
       setNewAllImageFiles([])
       setIsAddingProduct(false)
