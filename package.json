@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
@@ -11,10 +11,10 @@
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:seed:products": "tsx prisma/seed-products.ts",
-  "prisma:seed:clients": "tsx prisma/seed-clients.ts",
-  "prisma:seed:financing-sales": "tsx prisma/seed-financing-and-sales.ts",
-  "prisma:seed:demo-financing": "tsx prisma/seed-demo-financing.ts",
-  "postinstall": "prisma generate"
+    "prisma:seed:clients": "tsx prisma/seed-clients.ts",
+    "prisma:seed:financing-sales": "tsx prisma/seed-financing-and-sales.ts",
+    "prisma:seed:demo-financing": "tsx prisma/seed-demo-financing.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -46,6 +46,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@vercel/blob": "^2.0.1",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

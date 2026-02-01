@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/components/ui/use-toast"
 import {
   MessageCircle,
   Monitor,
@@ -21,11 +23,51 @@ import {
   Star,
   Eye,
   ChevronDown,
+  Check,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+
+// Skeleton loader para productos
+function ProductSkeleton() {
+  return (
+    <Card className="relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-sm rounded-xl overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-neutral-200 via-neutral-300 to-neutral-200 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700" />
+      <CardHeader className="p-0 bg-white dark:bg-neutral-900">
+        <div className="relative overflow-hidden rounded-t-lg bg-white">
+          <div className="w-full aspect-[4/3] flex items-center justify-center p-2 md:p-3">
+            <Skeleton className="w-full h-full rounded-md" />
+          </div>
+          <div className="absolute top-2 md:top-4 left-2 md:left-4">
+            <Skeleton className="h-5 w-24 rounded-full" />
+          </div>
+          <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4">
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-3 md:p-6 space-y-3">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
+          <Skeleton className="h-6 w-3/4 rounded" />
+          <Skeleton className="h-6 w-20 rounded" />
+        </div>
+        <div className="flex items-center gap-1">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="w-4 h-4 rounded" />
+          ))}
+          <Skeleton className="w-8 h-4 ml-2 rounded" />
+        </div>
+        <div className="space-y-2 mt-4">
+          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="h-9 w-full rounded-md" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 // Mapa para asignar iconos por categoría cuando vengan de la base de datos
 const categoryIcons: Record<string, any> = {
@@ -52,6 +94,7 @@ const formatCurrency = (value: number) => {
 }
 
 export function ProductsSection() {
+  const { toast } = useToast()
   // Catálogo dinámico desde la base de datos
   type Catalog = Record<string, { name: string; icon: any; products: any[] }>
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY_KEY)
@@ -64,7 +107,7 @@ export function ProductsSection() {
       },
     })
   )
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [cart, setCart] = useState<Array<{ product: any; category: string; quantity: number }>>([])
   const router = useRouter()
@@ -266,10 +309,20 @@ export function ProductsSection() {
     setCart((prev) => {
       const existingItem = prev.find((item) => item.product.title === product.title)
       if (existingItem) {
+        toast({
+          title: "Cantidad actualizada",
+          description: `${product.title} (${existingItem.quantity + 1} unidades)`,
+          duration: 2000,
+        })
         return prev.map((item) =>
           item.product.title === product.title ? { ...item, quantity: item.quantity + 1 } : item,
         )
       }
+      toast({
+        title: "Agregado al carrito",
+        description: product.title,
+        duration: 2000,
+      })
       return [...prev, { product, category, quantity: 1 }]
     })
   }
@@ -512,7 +565,13 @@ export function ProductsSection() {
             const category = categoryObj as { name: string; icon: any; products: any[] }
             return (
             <TabsContent key={key} value={key}>
-              {getFilteredProducts(category.products).length === 0 ? (
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+                  {[...Array(6)].map((_, i) => (
+                    <ProductSkeleton key={i} />
+                  ))}
+                </div>
+              ) : getFilteredProducts(category.products).length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No hay productos disponibles en esta categoría</p>
               ) : (
                 <>

@@ -1,7 +1,7 @@
 "use client"
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, Building2, FileText, Info, CreditCard, Calculator } from "lucide-react"
+import { Plus, Edit, Trash2, Save, X, Settings, ChevronLeft, ChevronRight, Star, ImagePlus, Building2, FileText, Info, CreditCard, Calculator, Search, Filter, RotateCcw } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { BrandLogo } from "@/components/brand-logo"
 
@@ -168,6 +168,46 @@ export function AdminPanel() {
   const [editFeatureValue, setEditFeatureValue] = useState("")
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
+
+  // Filtros de productos
+  const [productSearchQuery, setProductSearchQuery] = useState("")
+  const [productCategoryFilter, setProductCategoryFilter] = useState("all")
+  const [productBrandFilter, setProductBrandFilter] = useState("all")
+
+  // Lista de marcas únicas para el filtro
+  const uniqueBrands = useMemo(() => {
+    const brands = products.map(p => p.brand).filter(Boolean)
+    return [...new Set(brands)].sort()
+  }, [products])
+
+  // Productos filtrados
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      // Filtro de búsqueda (nombre o marca)
+      const searchLower = productSearchQuery.toLowerCase().trim()
+      const matchesSearch = !searchLower || 
+        product.name.toLowerCase().includes(searchLower) ||
+        (product.brand && product.brand.toLowerCase().includes(searchLower))
+      
+      // Filtro de categoría
+      const matchesCategory = productCategoryFilter === "all" || 
+        product.categoryId === Number(productCategoryFilter)
+      
+      // Filtro de marca
+      const matchesBrand = productBrandFilter === "all" || 
+        product.brand === productBrandFilter
+      
+      return matchesSearch && matchesCategory && matchesBrand
+    })
+  }, [products, productSearchQuery, productCategoryFilter, productBrandFilter])
+
+  const clearProductFilters = () => {
+    setProductSearchQuery("")
+    setProductCategoryFilter("all")
+    setProductBrandFilter("all")
+  }
+
+  const hasActiveFilters = productSearchQuery || productCategoryFilter !== "all" || productBrandFilter !== "all"
 
   const handleApiResponse = useCallback(async (res: Response, opts?: { success?: string }) => {
     if (res.status === 401) {
@@ -582,18 +622,93 @@ export function AdminPanel() {
           <TabsTrigger value="settings">Configuración del Sitio</TabsTrigger>
         </TabsList>
         <TabsContent value="products" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Productos</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold">Productos</h2>
+              <p className="text-sm text-muted-foreground">
+                {filteredProducts.length} de {products.length} productos
+              </p>
+            </div>
             <Button onClick={() => setIsAddingProduct(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Agregar Producto
             </Button>
           </div>
 
+          {/* Filtros de productos */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Búsqueda */}
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nombre o marca..."
+                      value={productSearchQuery}
+                      onChange={(e) => setProductSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                
+                {/* Filtro por categoría */}
+                <div className="w-full md:w-48">
+                  <Select value={productCategoryFilter} onValueChange={setProductCategoryFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las categorías</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={String(cat.id)}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Filtro por marca */}
+                <div className="w-full md:w-48">
+                  <Select value={productBrandFilter} onValueChange={setProductBrandFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Marca" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las marcas</SelectItem>
+                      {uniqueBrands.map((brand) => (
+                        <SelectItem key={brand} value={brand}>
+                          {brand}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Botón limpiar filtros */}
+                {hasActiveFilters && (
+                  <Button variant="outline" onClick={clearProductFilters} className="gap-2">
+                    <RotateCcw className="w-4 h-4" />
+                    Limpiar
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
-              <CardTitle>Lista de Productos</CardTitle>
-              <CardDescription>Gestiona todos los productos del catálogo</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Lista de Productos
+              </CardTitle>
+              <CardDescription>
+                {hasActiveFilters 
+                  ? `Mostrando ${filteredProducts.length} producto${filteredProducts.length !== 1 ? 's' : ''} filtrado${filteredProducts.length !== 1 ? 's' : ''}`
+                  : 'Gestiona todos los productos del catálogo'
+                }
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -609,7 +724,16 @@ export function AdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
+                  {filteredProducts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        {hasActiveFilters 
+                          ? 'No se encontraron productos con los filtros aplicados'
+                          : 'No hay productos en el catálogo'
+                        }
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredProducts.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
                         <img
